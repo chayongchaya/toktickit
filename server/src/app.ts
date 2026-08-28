@@ -2,6 +2,8 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
 import requesterRoutes from "./routes/requesters.js";
+import systemRoutes from "./routes/systems.js";
+import ticketRoutes from "./routes/tickets.js";
 
 export const app = express();
 
@@ -33,6 +35,9 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
   }
 });
 
+// Routes สำหรับ Lab 2
 app.use("/api", requesterRoutes);
+app.use("/api", systemRoutes);
+app.use("/api", ticketRoutes);
 
 export default app;
