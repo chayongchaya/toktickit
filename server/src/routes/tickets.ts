@@ -80,4 +80,44 @@ router.post("/tickets", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/tickets", async (req: Request, res: Response) => {
+  try {
+    const { requesterId, status, search } = req.query;
+
+    if (!requesterId || isNaN(Number(requesterId))) {
+      return res.status(400).json({ error: "requesterId query parameter is required" });
+    }
+
+    const prisma = getPrisma();
+    const where: any = {
+      requesterId: Number(requesterId),
+    };
+
+    if (status && typeof status === "string" && status !== "ALL") {
+      where.currentStatus = status;
+    }
+
+    if (search && typeof search === "string" && search.trim()) {
+      where.OR = [
+        { summary: { contains: search.trim(), mode: "insensitive" } },
+        { ticketNumber: { contains: search.trim(), mode: "insensitive" } },
+      ];
+    }
+
+    const tickets = await prisma.ticket.findMany({
+      where,
+      include: {
+        category: true,
+        relatedSystem: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.status(200).json(tickets);
+  } catch (error) {
+    console.error("GET /api/tickets error:", error);
+    return res.status(500).json({ error: "Failed to fetch tickets" });
+  }
+});
+
 export default router;
