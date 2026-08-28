@@ -4,6 +4,7 @@ import { checkSystem, Category } from "./api.js";
 import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
 import { Navbar } from "./components/Navbar.js";
 import { SelectRequesterPage } from "./pages/SelectRequesterPage.js";
+import { CreateTicketPage } from "./pages/CreateTicketPage.js";
 
 type UiState = "idle" | "loading" | "success" | "error";
 
@@ -108,7 +109,7 @@ export default function App() {
             path="/tickets/new"
             element={
               <ProtectedLayout>
-                <PlaceholderPage title="Create Ticket Screen" />
+                <CreateTicketPage />
               </ProtectedLayout>
             }
           />
