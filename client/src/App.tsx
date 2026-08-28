@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { checkSystem, Category } from "./api.js";
+import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
+import { Navbar } from "./components/Navbar.js";
+import { SelectRequesterPage } from "./pages/SelectRequesterPage.js";
 
-// UI states you must handle for Issue 4: idle, loading, success, error.
 type UiState = "idle" | "loading" | "success" | "error";
 
-export default function App() {
+function Lab1Screen() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -33,14 +36,12 @@ export default function App() {
         {state === "loading" ? "Loading…" : "Check System"}
       </button>
 
-      {/* Render Error (Offline) State */}
       {state === "error" && (
         <div className="alert alert-danger mt-3" role="alert">
           Offline — System unavailable
         </div>
       )}
 
-      {/* Render Success (Online + Categories) State */}
       {state === "success" && (
         <div className="mt-3">
           <div className="alert alert-success" role="alert">
@@ -57,5 +58,63 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  const { currentRequester, isLoading } = useRequester();
+
+  if (isLoading) {
+    return <div className="p-5 text-center">Loading user context...</div>;
+  }
+
+  if (!currentRequester) {
+    return <Navigate to="/select-requester" replace />;
+  }
+
+  return (
+    <>
+      <Navbar />
+      <main className="container py-4">{children}</main>
+    </>
+  );
+}
+
+function PlaceholderPage({ title }: { title: string }) {
+  return (
+    <div className="card shadow-sm p-4 text-center">
+      <h2 className="h4 text-success">{title}</h2>
+      <p className="text-muted">Ready for the next feature implementation.</p>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <RequesterProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/lab1" element={<Lab1Screen />} />
+          <Route path="/select-requester" element={<SelectRequesterPage />} />
+          <Route
+            path="/tickets"
+            element={
+              <ProtectedLayout>
+                <PlaceholderPage title="My Tickets Screen" />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/tickets/new"
+            element={
+              <ProtectedLayout>
+                <PlaceholderPage title="Create Ticket Screen" />
+              </ProtectedLayout>
+            }
+          />
+          <Route path="*" element={<Navigate to="/tickets" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </RequesterProvider>
   );
 }
