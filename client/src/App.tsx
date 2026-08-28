@@ -5,6 +5,7 @@ import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
 import { Navbar } from "./components/Navbar.js";
 import { SelectRequesterPage } from "./pages/SelectRequesterPage.js";
 import { CreateTicketPage } from "./pages/CreateTicketPage.js";
+import { TicketListPage } from "./pages/TicketListPage.js";
 
 type UiState = "idle" | "loading" | "success" | "error";
 
@@ -81,15 +82,6 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="card shadow-sm p-4 text-center">
-      <h2 className="h4 text-success">{title}</h2>
-      <p className="text-muted">Ready for the next feature implementation.</p>
-    </div>
-  );
-}
-
 export default function App() {
   return (
     <RequesterProvider>
@@ -101,7 +93,7 @@ export default function App() {
             path="/tickets"
             element={
               <ProtectedLayout>
-                <PlaceholderPage title="My Tickets Screen" />
+                <TicketListPage />
               </ProtectedLayout>
             }
           />
