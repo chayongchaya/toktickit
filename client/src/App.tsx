@@ -88,8 +88,12 @@ export default function App() {
     <RequesterProvider>
       <BrowserRouter>
         <Routes>
+          {/* หน้าแรกสุดของระบบ: วิ่งไปหน้า Select Requester เสมอ */}
+          <Route path="/" element={<Navigate to="/select-requester" replace />} />
           <Route path="/lab1" element={<Lab1Screen />} />
           <Route path="/select-requester" element={<SelectRequesterPage />} />
+
+          {/* Protected Routes สำหรับระบบตั๋ว */}
           <Route
             path="/tickets"
             element={
@@ -106,7 +110,6 @@ export default function App() {
               </ProtectedLayout>
             }
           />
-          <Route path="*" element={<Navigate to="/tickets" replace />} />
           <Route
             path="/tickets/:id"
             element={
@@ -115,6 +118,9 @@ export default function App() {
               </ProtectedLayout>
             }
           />
+
+          {/* Catch-all Route: ต้องอยู่บรรทัดสุดท้าย */}
+          <Route path="*" element={<Navigate to="/select-requester" replace />} />
         </Routes>
       </BrowserRouter>
     </RequesterProvider>

@@ -31,37 +31,86 @@ export const SelectRequesterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center bg-light p-4">
-      <div className="card shadow-sm p-4 w-100" style={{ maxWidth: 460 }}>
-        <h1 className="h4 fw-bold text-success mb-2">Select Development Requester</h1>
-
-        <div className="alert alert-warning py-2 px-3 small mb-3">
-          Choose a development requester to simulate the current requester context for Lab 2. This is for testing only and is not a login screen.
+    <div style={{ backgroundColor: "#F5F7F6", minHeight: "100vh" }}>
+      <div className="container py-3" style={{ maxWidth: 860 }}>
+        <div className="small text-muted d-flex align-items-center gap-1">
+          <span className="text-success">🏠</span>
+          <span>&gt;</span>
+          <span>Development Requester Selection</span>
         </div>
+      </div>
 
-        <div className="mb-4">
-          <label className="form-label text-secondary small fw-medium">
-            Development Requester
-          </label>
-          <select
-            className="form-select"
-            value={selectedId}
-            onChange={(e) => setSelectedId(Number(e.target.value))}
+      <div className="container pb-5" style={{ maxWidth: 650 }}>
+        <div className="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white text-center">
+          <div
+            className="rounded-circle d-inline-flex align-items-center justify-content-center mx-auto mb-3"
+            style={{ width: 64, height: 64, backgroundColor: "#EAF6EF", color: "#006B3C", fontSize: "1.75rem" }}
           >
-            {requesters.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name} ({user.email})
-              </option>
-            ))}
-          </select>
-        </div>
+            👥
+          </div>
 
-        <button
-          onClick={handleContinue}
-          className="btn btn-success w-100 fw-medium"
-        >
-          Continue
-        </button>
+          <h2 className="h4 fw-bold text-dark mb-2">Select Development Requester</h2>
+          <p className="text-muted small mb-4">
+            Choose a development requester to simulate the current requester context for Lab 2.<br />
+            This is for testing only and is not a login screen.
+          </p>
+
+          <div className="text-start mb-3">
+            <label className="form-label small fw-semibold text-dark mb-1">
+              Development Requester <span className="text-danger">*</span>
+            </label>
+            <select
+              className="form-select form-select-lg fs-6 rounded-3 border-secondary border-opacity-25"
+              value={selectedId}
+              onChange={(e) => setSelectedId(Number(e.target.value))}
+            >
+              {requesters.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div
+            className="d-flex align-items-center gap-2 p-2 px-3 rounded-3 text-start mb-4"
+            style={{ backgroundColor: "#EAF6EF", border: "1px solid #D2EBD9", color: "#006B3C", fontSize: "0.85rem" }}
+          >
+            <span>ⓘ</span>
+            <span>Only active development requesters are shown.</span>
+          </div>
+
+          <div
+            className="d-flex align-items-start gap-3 p-3 rounded-3 text-start mb-4"
+            style={{ backgroundColor: "#F5F7F6", border: "1px solid #E5E7EB" }}
+          >
+            <span style={{ fontSize: "1.25rem" }}>🛡️</span>
+            <div>
+              <div className="fw-semibold small text-dark">Authentication coming in Lab 3</div>
+              <div className="text-muted" style={{ fontSize: "0.78rem" }}>
+                In Lab 3, this selection will be replaced with secure authentication so you can access the system with your own account.
+              </div>
+            </div>
+          </div>
+
+          <div className="d-flex justify-content-end gap-2">
+            <button
+              type="button"
+              className="btn btn-light border px-4 py-2 small fw-semibold text-muted"
+              onClick={() => navigate("/tickets")}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn px-4 py-2 small fw-semibold text-white d-flex align-items-center gap-2"
+              style={{ backgroundColor: "#006B3C" }}
+              onClick={handleContinue}
+            >
+              → Continue
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
