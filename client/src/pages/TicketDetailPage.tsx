@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 
+interface AttachmentItem {
+  id: number;
+  fileName: string;
+  fileSize: number;
+}
+
 interface TicketDetail {
   id: number;
   ticketNumber: string;
@@ -14,7 +20,7 @@ interface TicketDetail {
   category: { id: number; name: string };
   relatedSystem: { id: number; name: string };
   requester: { id: number; name: string; email: string };
-  attachments: Array<{ id: number; fileName: string; fileSize: number }>;
+  attachments: AttachmentItem[];
 }
 
 export const TicketDetailPage: React.FC = () => {
@@ -24,7 +30,7 @@ export const TicketDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchTicketDetails = () => {
     setLoading(true);
     fetch(`/api/tickets/${id}`)
       .then(async (res) => {
@@ -37,7 +43,42 @@ export const TicketDetailPage: React.FC = () => {
       .then((data) => setTicket(data))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchTicketDetails();
   }, [id]);
+
+  const handleRemoveAttachment = async (attachmentId: number) => {
+    const reason = window.prompt("Please enter the reason for removing this attachment:");
+    if (!reason || reason.trim() === "") return;
+
+    try {
+      const res = await fetch(`/api/attachments/${attachmentId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ removalReason: reason.trim() }),
+      });
+
+      if (res.ok) {
+        // อัปเดตรายการไฟล์แนบใหม่ทันที
+        setTicket((prev) =>
+          prev
+            ? {
+                ...prev,
+                attachments: prev.attachments.filter((a) => a.id !== attachmentId),
+              }
+            : null
+        );
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to remove attachment");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred while removing attachment");
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -116,9 +157,22 @@ export const TicketDetailPage: React.FC = () => {
               {ticket.attachments && ticket.attachments.length > 0 ? (
                 <ul className="list-group list-group-flush">
                   {ticket.attachments.map((att) => (
-                    <li key={att.id} className="list-group-item d-flex justify-content-between align-items-center px-0">
-                      <span>📎 {att.fileName}</span>
-                      <span className="text-muted small">{(att.fileSize / 1024).toFixed(1)} KB</span>
+                    <li
+                      key={att.id}
+                      className="list-group-item d-flex justify-content-between align-items-center px-0 py-2"
+                    >
+                      <div>
+                        <span>📎 {att.fileName}</span>
+                        <span className="text-muted small ms-2">
+                          ({(att.fileSize / 1024).toFixed(1)} KB)
+                        </span>
+                      </div>
+                      <button
+                        className="btn btn-outline-danger btn-sm"
+                        onClick={() => handleRemoveAttachment(att.id)}
+                      >
+                        Remove
+                      </button>
                     </li>
                   ))}
                 </ul>
