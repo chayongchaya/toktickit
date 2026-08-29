@@ -137,7 +137,7 @@ export const TicketListPage: React.FC = () => {
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th style={{ width: 140 }}>Ticket ID</th>
+                <th style={{ width: 150 }}>Ticket ID</th>
                 <th>Summary</th>
                 <th>Category</th>
                 <th>System</th>
@@ -162,7 +162,15 @@ export const TicketListPage: React.FC = () => {
               ) : (
                 tickets.map((t) => (
                   <tr key={t.id}>
-                    <td className="fw-semibold text-secondary">{t.ticketNumber}</td>
+                    {/* จุดที่เปลี่ยนเป็น Link ไปหน้ารายละเอียด */}
+                    <td className="fw-semibold">
+                      <Link
+                        to={`/tickets/${t.id}`}
+                        className="text-success text-decoration-none fw-bold"
+                      >
+                        {t.ticketNumber}
+                      </Link>
+                    </td>
                     <td>
                       <div className="fw-medium text-dark">{t.summary}</div>
                       <div className="text-muted small text-truncate" style={{ maxWidth: 350 }}>

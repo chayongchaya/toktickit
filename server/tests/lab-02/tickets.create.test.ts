@@ -39,4 +39,25 @@ describe("POST /api/tickets & GET /api/systems", () => {
     expect(res.body.currentStatus).toBe("NEW");
     expect(res.body.requestedPriority).toBe("HIGH");
   });
+  it("GET /api/tickets/:id should return ticket details by ID", async () => {
+  // ดึงตั๋วใบแรกที่สร้างไว้
+  const prisma = (await import("../../src/prisma.js")).getPrisma();
+  const existingTicket = await prisma.ticket.findFirst();
+
+  if (existingTicket) {
+    const res = await request(app).get(`/api/tickets/${existingTicket.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("id", existingTicket.id);
+    expect(res.body).toHaveProperty("summary");
+    expect(res.body).toHaveProperty("category");
+    expect(res.body).toHaveProperty("relatedSystem");
+    expect(res.body).toHaveProperty("requester");
+  }
+});
+
+it("GET /api/tickets/:id should return 404 for non-existent ticket ID", async () => {
+  const res = await request(app).get("/api/tickets/999999");
+  expect(res.status).toBe(404);
+  expect(res.body).toHaveProperty("error");
+});
 });

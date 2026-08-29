@@ -80,6 +80,7 @@ router.post("/tickets", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/tickets - ดึงรายการตั๋วพร้อม Filter & Search
 router.get("/tickets", async (req: Request, res: Response) => {
   try {
     const { requesterId, status, search } = req.query;
@@ -117,6 +118,80 @@ router.get("/tickets", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("GET /api/tickets error:", error);
     return res.status(500).json({ error: "Failed to fetch tickets" });
+  }
+});
+
+// GET /api/tickets/:id - ดึงรายละเอียดตั๋วรายใบ พร้อมไฟล์แนบที่ยังไม่ถูกลบ
+router.get("/tickets/:id", async (req: Request, res: Response) => {
+  try {
+    const ticketId = Number(req.params.id);
+
+    if (isNaN(ticketId)) {
+      return res.status(400).json({ error: "Invalid ticket ID" });
+    }
+
+    const prisma = getPrisma();
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        category: true,
+        relatedSystem: true,
+        requester: true,
+        attachments: {
+          where: {
+            isRemoved: false,
+          },
+        },
+      },
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    return res.status(200).json(ticket);
+  } catch (error) {
+    console.error("GET /api/tickets/:id error:", error);
+    return res.status(500).json({ error: "Failed to fetch ticket details" });
+  }
+});
+
+// DELETE /api/attachments/:id - Soft delete attachment พร้อมระบุ removalReason
+router.delete("/attachments/:id", async (req: Request, res: Response) => {
+  try {
+    const attachmentId = Number(req.params.id);
+    const { removalReason } = req.body;
+
+    if (isNaN(attachmentId)) {
+      return res.status(400).json({ error: "Invalid attachment ID" });
+    }
+
+    if (!removalReason || typeof removalReason !== "string" || !removalReason.trim()) {
+      return res.status(400).json({ error: "Removal reason is required" });
+    }
+
+    const prisma = getPrisma();
+    const existing = await prisma.attachment.findUnique({
+      where: { id: attachmentId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    const updated = await prisma.attachment.update({
+      where: { id: attachmentId },
+      data: {
+        isRemoved: true,
+        removalReason: removalReason.trim(),
+        removedAt: new Date(),
+      },
+    });
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error("DELETE /api/attachments/:id error:", error);
+    return res.status(500).json({ error: "Failed to remove attachment" });
   }
 });
 
