@@ -6,6 +6,7 @@ import { Navbar } from "./components/Navbar.js";
 import { SelectRequesterPage } from "./pages/SelectRequesterPage.js";
 import { CreateTicketPage } from "./pages/CreateTicketPage.js";
 import { TicketListPage } from "./pages/TicketListPage.js";
+import { TicketDetailPage } from "./pages/TicketDetailPage.js";
 
 type UiState = "idle" | "loading" | "success" | "error";
 
@@ -106,6 +107,14 @@ export default function App() {
             }
           />
           <Route path="*" element={<Navigate to="/tickets" replace />} />
+          <Route
+            path="/tickets/:id"
+            element={
+              <ProtectedLayout>
+                <TicketDetailPage />
+              </ProtectedLayout>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </RequesterProvider>

@@ -120,4 +120,35 @@ router.get("/tickets", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/tickets/:id - ดึงรายละเอียดตั๋วรายใบ
+router.get("/tickets/:id", async (req: Request, res: Response) => {
+  try {
+    const ticketId = Number(req.params.id);
+
+    if (isNaN(ticketId)) {
+      return res.status(400).json({ error: "Invalid ticket ID" });
+    }
+
+    const prisma = getPrisma();
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        category: true,
+        relatedSystem: true,
+        requester: true,
+        attachments: true,
+      },
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    return res.status(200).json(ticket);
+  } catch (error) {
+    console.error("GET /api/tickets/:id error:", error);
+    return res.status(500).json({ error: "Failed to fetch ticket details" });
+  }
+});
+
 export default router;
