@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useRequester } from "../context/RequesterContext.js";
+import { useRequester } from "../context/RequesterContext";
 
 interface TicketItem {
   id: number;
@@ -10,7 +10,6 @@ interface TicketItem {
   currentStatus: string;
   requestedPriority: string;
   itPriority?: string;
-  ticketOwner?: string;
   createdAt: string;
   updatedAt: string;
   category: { id: number; name: string };
@@ -44,7 +43,6 @@ export const TicketListPage: React.FC = () => {
     })
       .then((res) => res.json())
       .then((resData) => {
-        // ดึง array จาก resData.data หรือ resData ตรงๆ
         const ticketList = Array.isArray(resData)
           ? resData
           : resData.data || resData.tickets || [];
@@ -319,20 +317,19 @@ export const TicketListPage: React.FC = () => {
                   <th className="py-3 px-3 fw-semibold text-center">Requested Priority</th>
                   <th className="py-3 px-3 fw-semibold text-center">IT Priority</th>
                   <th className="py-3 px-3 fw-semibold text-center">Current Status</th>
-                  <th className="py-3 px-3 fw-semibold">Ticket Owner</th>
                   <th className="py-3 px-3 fw-semibold">Last Updated ⇅</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-5 text-muted">
+                    <td colSpan={8} className="text-center py-5 text-muted">
                       Loading tickets...
                     </td>
                   </tr>
                 ) : paginatedTickets.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-5 text-muted fst-italic">
+                    <td colSpan={8} className="text-center py-5 text-muted fst-italic">
                       {tickets.length === 0
                         ? "No tickets found for this requester."
                         : "No matching tickets found."}
@@ -366,7 +363,6 @@ export const TicketListPage: React.FC = () => {
                         {getPriorityBadge(t.itPriority || t.requestedPriority)}
                       </td>
                       <td className="px-3 text-center">{getStatusBadge(t.currentStatus)}</td>
-                      <td className="px-3 text-muted">{t.ticketOwner || "Unassigned"}</td>
                       <td className="px-3 text-muted">
                         {new Date(t.updatedAt || t.createdAt).toLocaleDateString("en-US", {
                           month: "short",
