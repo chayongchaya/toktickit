@@ -144,6 +144,9 @@ export const CreateTicketPage: React.FC = () => {
         for (const file of selectedFiles) {
           const formData = new FormData();
           formData.append("file", file);
+          if (currentRequester) {
+            formData.append("requesterId", String(currentRequester.id));
+          }
 
           const attachRes = await fetch(`/api/tickets/${createdTicket.id}/attachments`, {
             method: "POST",
