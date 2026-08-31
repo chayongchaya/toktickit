@@ -1,174 +1,249 @@
 import { Router, Request, Response } from "express";
-import { getPrisma } from "../prisma.js";
-import { Priority } from "@prisma/client";
 import multer from "multer";
-import fs from "fs";
 import path from "path";
+import fs from "fs";
+import { getPrisma } from "../prisma.js";
 
-const router = Router();
+export const ticketsRouter = Router();
+export const attachmentsRouter = Router();
+const prisma = getPrisma();
 
-// สร้างโฟลเดอร์ uploads อัตโนมัติหากยังไม่มี
-const uploadDir = path.resolve("uploads");
+// Configure storage for file uploads
+const uploadDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// กำหนด Multer Storage ให้จัดเก็บไฟล์จริงลง Disk
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, uploadDir);
   },
   filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `${uniqueSuffix}${ext}`);
   },
 });
+
+// Allowed MIME types: JPG, PNG, WEBP, PDF
+const allowedMimeTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+];
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5 MB limit
+  },
   fileFilter: (_req, file, cb) => {
-    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
     if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type. Allowed: JPG, PNG, WEBP, PDF"));
+      cb(new Error("INVALID_FILE_TYPE"));
     }
   },
 });
 
-function generateTicketNumber(): string {
-  const timestamp = Date.now().toString().slice(-6);
-  const random = Math.floor(100 + Math.random() * 900);
-  return `TIC-${timestamp}-${random}`;
-}
+// Helper: Extract requesterId from Header, Query, or Body
+const getRequesterId = (req: Request): number | null => {
+  const headerVal = req.headers["x-requester-id"];
+  const queryVal = req.query.requesterId;
+  const bodyVal = req.body?.requesterId;
 
-// POST /api/tickets - สร้างตั๋วใหม่
-router.post("/tickets", async (req: Request, res: Response) => {
+  const val = headerVal || queryVal || bodyVal;
+  if (!val) return null;
+
+  const id = Number(val);
+  return isNaN(id) ? null : id;
+};
+
+// Helper: Generate unique ticket number (TKT-YYYY-XXXXXX)
+const generateTicketNumber = async (): Promise<string> => {
+  const currentYear = new Date().getFullYear();
+  const count = await prisma.ticket.count();
+  const nextNumber = (count + 1).toString().padStart(6, "0");
+  return `TKT-${currentYear}-${nextNumber}`;
+};
+
+// ==========================================
+// TICKETS ROUTER (/api/tickets)
+// ==========================================
+
+// 1. GET /api/tickets (Paginated & Filtered)
+ticketsRouter.get("/", async (req: Request, res: Response) => {
+  const requesterId = getRequesterId(req);
+  if (!requesterId) {
+    return res.status(400).json({ error: "Requester identity is required" });
+  }
+
   try {
     const {
-      summary,
-      title,
-      description,
+      search,
       categoryId,
-      relatedSystemId,
       requestedPriority,
-      priority,
+      currentStatus,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      page = "1",
+      pageSize = "10",
+    } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+    const limit = Math.max(1, parseInt(pageSize as string, 10) || 10);
+    const skip = (pageNum - 1) * limit;
+
+    const whereClause: any = {
       requesterId,
-      requesterUserId,
-    } = req.body;
+    };
 
-    const finalSummary = summary || title;
-    const finalRequesterId = requesterId || requesterUserId;
-    const rawPriority = requestedPriority || priority;
-
-    if (!finalSummary || typeof finalSummary !== "string" || !finalSummary.trim()) {
-      return res.status(400).json({ error: "Summary/Title is required" });
-    }
-    if (!description || typeof description !== "string" || !description.trim()) {
-      return res.status(400).json({ error: "Description is required" });
-    }
-    if (!categoryId || isNaN(Number(categoryId))) {
-      return res.status(400).json({ error: "Valid categoryId is required" });
-    }
-    if (!finalRequesterId || isNaN(Number(finalRequesterId))) {
-      return res.status(400).json({ error: "Valid requesterId is required" });
-    }
-    if (!relatedSystemId || isNaN(Number(relatedSystemId))) {
-      return res.status(400).json({ error: "Valid relatedSystemId is required" });
+    if (search && typeof search === "string" && search.trim() !== "") {
+      whereClause.OR = [
+        { ticketNumber: { contains: search.trim(), mode: "insensitive" } },
+        { summary: { contains: search.trim(), mode: "insensitive" } },
+      ];
     }
 
-    const validPriorities = [Priority.LOW, Priority.MEDIUM, Priority.HIGH];
-    const ticketPriority: Priority =
-      rawPriority && validPriorities.includes(rawPriority)
-        ? (rawPriority as Priority)
-        : Priority.MEDIUM;
+    if (categoryId) {
+      whereClause.categoryId = Number(categoryId);
+    }
 
-    const prisma = getPrisma();
+    if (requestedPriority && typeof requestedPriority === "string") {
+      whereClause.requestedPriority = requestedPriority;
+    }
 
-    const newTicket = await prisma.ticket.create({
+    if (currentStatus && typeof currentStatus === "string") {
+      whereClause.currentStatus = currentStatus;
+    }
+
+    const validSortFields = ["ticketNumber", "createdAt", "updatedAt"];
+    const sortField = validSortFields.includes(sortBy as string)
+      ? (sortBy as string)
+      : "createdAt";
+    const sortDirection = sortOrder === "asc" ? "asc" : "desc";
+
+    const [total, tickets] = await Promise.all([
+      prisma.ticket.count({ where: whereClause }),
+      prisma.ticket.findMany({
+        where: whereClause,
+        include: {
+          category: { select: { id: true, name: true } },
+          relatedSystem: { select: { id: true, name: true } },
+        },
+        orderBy: { [sortField]: sortDirection },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return res.status(200).json({
+      data: tickets,
+      tickets: tickets,
+      pagination: {
+        total,
+        page: pageNum,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to retrieve tickets" });
+  }
+});
+
+// 2. POST /api/tickets (Create Ticket)
+ticketsRouter.post("/", async (req: Request, res: Response) => {
+  const { categoryId, relatedSystemId, requestedPriority, summary, description } =
+    req.body;
+
+  if (
+    !summary ||
+    typeof summary !== "string" ||
+    summary.trim().length < 5 ||
+    summary.trim().length > 100
+  ) {
+    return res.status(400).json({
+      error: "Summary is required (must be between 5 and 100 characters)",
+    });
+  }
+
+  if (
+    !description ||
+    typeof description !== "string" ||
+    description.trim().length < 10 ||
+    description.trim().length > 2000
+  ) {
+    return res.status(400).json({
+      error: "Description is required (must be between 10 and 2000 characters)",
+    });
+  }
+
+  if (!categoryId || !relatedSystemId || !requestedPriority) {
+    return res.status(400).json({
+      error: "Category, related system, and priority are required",
+    });
+  }
+
+  const requesterId = getRequesterId(req);
+  if (!requesterId) {
+    return res.status(400).json({ error: "Requester identity is required" });
+  }
+
+  try {
+    const ticketNumber = await generateTicketNumber();
+
+    const ticket = await prisma.ticket.create({
       data: {
-        ticketNumber: generateTicketNumber(),
-        summary: finalSummary.trim(),
-        description: description.trim(),
+        ticketNumber,
+        requesterId,
         categoryId: Number(categoryId),
         relatedSystemId: Number(relatedSystemId),
-        requesterId: Number(finalRequesterId),
-        requestedPriority: ticketPriority,
-        itPriority: ticketPriority,
-      },
-      include: {
-        category: true,
-        relatedSystem: true,
-        requester: true,
+        requestedPriority,
+        itPriority: requestedPriority,
+        currentStatus: "NEW",
+        summary: summary.trim(),
+        description: description.trim(),
       },
     });
 
-    return res.status(201).json(newTicket);
+    return res.status(201).json(ticket);
   } catch (error) {
-    console.error("POST /api/tickets error:", error);
     return res.status(500).json({ error: "Failed to create ticket" });
   }
 });
 
-// GET /api/tickets - ดึงรายการตั๋วทั้งหมดตาม Requester
-router.get("/tickets", async (req: Request, res: Response) => {
-  try {
-    const { requesterId, status, search } = req.query;
-
-    if (!requesterId || isNaN(Number(requesterId))) {
-      return res.status(400).json({ error: "requesterId query parameter is required" });
-    }
-
-    const prisma = getPrisma();
-    const where: any = {
-      requesterId: Number(requesterId),
-    };
-
-    if (status && typeof status === "string" && status !== "ALL") {
-      where.currentStatus = status;
-    }
-
-    if (search && typeof search === "string" && search.trim()) {
-      where.OR = [
-        { summary: { contains: search.trim(), mode: "insensitive" } },
-        { ticketNumber: { contains: search.trim(), mode: "insensitive" } },
-      ];
-    }
-
-    const tickets = await prisma.ticket.findMany({
-      where,
-      include: {
-        category: true,
-        relatedSystem: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return res.status(200).json(tickets);
-  } catch (error) {
-    console.error("GET /api/tickets error:", error);
-    return res.status(500).json({ error: "Failed to fetch tickets" });
+// 3. GET /api/tickets/:id (Ticket Details)
+ticketsRouter.get("/:id", async (req: Request, res: Response) => {
+  const requesterId = getRequesterId(req);
+  if (!requesterId) {
+    return res.status(400).json({ error: "Requester identity is required" });
   }
-});
 
-// GET /api/tickets/:id - ดึงรายละเอียดตั๋วรายใบ พร้อมประวัติไฟล์แนบทั้งหมด
-router.get("/tickets/:id", async (req: Request, res: Response) => {
+  const ticketId = Number(req.params.id);
+  if (isNaN(ticketId)) {
+    return res.status(400).json({ error: "Invalid ticket ID" });
+  }
+
   try {
-    const ticketId = Number(req.params.id);
-
-    if (isNaN(ticketId)) {
-      return res.status(400).json({ error: "Invalid ticket ID" });
-    }
-
-    const prisma = getPrisma();
     const ticket = await prisma.ticket.findUnique({
       where: { id: ticketId },
       include: {
-        category: true,
-        relatedSystem: true,
-        requester: true,
-        attachments: true,
+        requester: { select: { id: true, name: true, email: true } },
+        category: { select: { id: true, name: true } },
+        relatedSystem: { select: { id: true, name: true } },
+        attachments: {
+          select: {
+            id: true,
+            fileName: true,
+            fileSize: true,
+            mimeType: true,
+            isRemoved: true,
+            removalReason: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
@@ -176,110 +251,142 @@ router.get("/tickets/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Ticket not found" });
     }
 
+    // Strict Ownership Check
+    if (ticket.requesterId !== requesterId) {
+      return res.status(403).json({ error: "Forbidden: You do not own this ticket" });
+    }
+
     return res.status(200).json(ticket);
   } catch (error) {
-    console.error("GET /api/tickets/:id error:", error);
-    return res.status(500).json({ error: "Failed to fetch ticket details" });
+    return res.status(500).json({ error: "Failed to retrieve ticket details" });
   }
 });
 
-// POST /api/tickets/:id/attachments - อัปโหลดไฟล์จริงด้วย multipart/form-data
-router.post("/tickets/:id/attachments", upload.single("file"), async (req: Request, res: Response) => {
-  try {
-    const ticketId = Number(req.params.id);
+// 4. POST /api/tickets/:id/attachments (Upload)
+ticketsRouter.post(
+  "/:id/attachments",
+  (req, res, next) => {
+    upload.single("file")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({ error: "File size exceeds 5 MB limit" });
+        }
+        return res.status(400).json({ error: err.message });
+      } else if (err) {
+        if (err.message === "INVALID_FILE_TYPE") {
+          return res.status(400).json({
+            error: "Only JPG, PNG, WEBP, and PDF files are allowed",
+          });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
+  async (req: Request, res: Response) => {
+    const requesterId = getRequesterId(req);
+    if (!requesterId) {
+      return res.status(400).json({ error: "Requester identity is required" });
+    }
 
+    const ticketId = Number(req.params.id);
     if (isNaN(ticketId)) {
       return res.status(400).json({ error: "Invalid ticket ID" });
     }
 
-    const file = req.file;
-    if (!file) {
-      return res.status(400).json({ error: "File upload is required." });
+    if (!req.file) {
+      return res.status(400).json({ error: "File is required" });
     }
 
-    const prisma = getPrisma();
+    try {
+      const ticket = await prisma.ticket.findUnique({
+        where: { id: ticketId },
+        include: {
+          attachments: {
+            where: { isRemoved: false },
+          },
+        },
+      });
 
-    // ตรวจสอบ Active Attachment Quota (สูงสุด 5 ไฟล์ต่อ 1 Ticket)
-    const activeCount = await prisma.attachment.count({
-      where: { ticketId, isRemoved: false },
-    });
-    if (activeCount >= 5) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return res.status(400).json({ error: "Maximum limit of 5 active attachments reached." });
+      if (!ticket) {
+        return res.status(404).json({ error: "Ticket not found" });
+      }
+
+      // Strict Ownership Check
+      if (ticket.requesterId !== requesterId) {
+        return res.status(403).json({ error: "Forbidden: You do not own this ticket" });
+      }
+
+      // Max 5 active attachments limit
+      if (ticket.attachments.length >= 5) {
+        return res.status(400).json({
+          error: "A ticket can have a maximum of 5 active attachments",
+        });
+      }
+
+      const attachment = await prisma.attachment.create({
+        data: {
+          ticketId,
+          fileName: req.file.filename,
+          storagePath: req.file.path,
+          fileSize: req.file.size,
+          mimeType: req.file.mimetype,
+          isRemoved: false,
+        },
+      });
+
+      return res.status(201).json(attachment);
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to upload attachment" });
     }
-
-    const newAttachment = await prisma.attachment.create({
-      data: {
-        ticketId,
-        fileName: file.originalname,
-        fileSize: file.size,
-        mimeType: file.mimetype,
-        storagePath: file.path,
-        isRemoved: false,
-      },
-    });
-
-    return res.status(201).json(newAttachment);
-  } catch (error: any) {
-    console.error("POST /api/tickets/:id/attachments error:", error);
-    return res.status(500).json({ error: error.message || "Failed to upload attachment" });
   }
-});
+);
 
-// GET /api/attachments/:id/download - ส่งไฟล์จริงที่เก็บบน Disk ให้ Browser ดาวน์โหลด
-router.get("/attachments/:id/download", async (req: Request, res: Response) => {
+// ==========================================
+// ATTACHMENTS ROUTER (/api/attachments)
+// ==========================================
+
+// 5. DELETE /api/attachments/:id (Soft Remove)
+attachmentsRouter.delete("/:id", async (req: Request, res: Response) => {
+  const requesterId = getRequesterId(req);
+  if (!requesterId) {
+    return res.status(400).json({ error: "Requester identity is required" });
+  }
+
+  const attachmentId = Number(req.params.id);
+  const { removalReason } = req.body;
+
+  if (isNaN(attachmentId)) {
+    return res.status(400).json({ error: "Invalid attachment ID" });
+  }
+
+  if (
+    !removalReason ||
+    typeof removalReason !== "string" ||
+    removalReason.trim().length === 0
+  ) {
+    return res.status(400).json({ error: "removalReason is required" });
+  }
+
   try {
-    const attachmentId = Number(req.params.id);
-
-    if (isNaN(attachmentId)) {
-      return res.status(400).json({ error: "Invalid attachment ID" });
-    }
-
-    const prisma = getPrisma();
     const attachment = await prisma.attachment.findUnique({
       where: { id: attachmentId },
+      include: { ticket: true },
     });
 
-    // กฎข้อ 4.5: ไฟล์ที่ถูกลบไปแล้วจะต้องไม่สามารถดาวน์โหลดได้
-    if (!attachment || attachment.isRemoved) {
-      return res.status(404).json({ error: "Attachment not found or has been removed." });
-    }
-
-    // ตรวจสอบว่ามีไฟล์จริงอยู่บนดิสก์หรือไม่
-    const resolvedPath = path.resolve(attachment.storagePath);
-    if (!fs.existsSync(resolvedPath)) {
-      return res.status(404).json({ error: "Physical file not found on server." });
-    }
-
-    // ส่งไฟล์จริงกลับไปให้ดาวน์โหลด
-    return res.download(resolvedPath, attachment.fileName);
-  } catch (error) {
-    console.error("GET /api/attachments/:id/download error:", error);
-    return res.status(500).json({ error: "Failed to download attachment" });
-  }
-});
-
-// DELETE /api/attachments/:id - Soft delete attachment พร้อมระบุเหตุผล
-router.delete("/attachments/:id", async (req: Request, res: Response) => {
-  try {
-    const attachmentId = Number(req.params.id);
-    const { removalReason } = req.body;
-
-    if (isNaN(attachmentId)) {
-      return res.status(400).json({ error: "Invalid attachment ID" });
-    }
-
-    if (!removalReason || typeof removalReason !== "string" || !removalReason.trim()) {
-      return res.status(400).json({ error: "Removal reason is required" });
-    }
-
-    const prisma = getPrisma();
-    const existing = await prisma.attachment.findUnique({
-      where: { id: attachmentId },
-    });
-
-    if (!existing) {
+    if (!attachment) {
       return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    // Ownership Check
+    if (attachment.ticket.requesterId !== requesterId) {
+      return res.status(403).json({
+        error: "Forbidden: You do not own this attachment",
+      });
+    }
+
+    if (attachment.isRemoved) {
+      return res.status(400).json({ error: "Attachment is already removed" });
     }
 
     const updated = await prisma.attachment.update({
@@ -293,9 +400,58 @@ router.delete("/attachments/:id", async (req: Request, res: Response) => {
 
     return res.status(200).json(updated);
   } catch (error) {
-    console.error("DELETE /api/attachments/:id error:", error);
-    return res.status(500).json({ error: "Failed to remove attachment" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-export default router;
+// 6. GET /api/attachments/:id/download (Download Stream)
+attachmentsRouter.get("/:id/download", async (req: Request, res: Response) => {
+  const requesterId = getRequesterId(req);
+  if (!requesterId) {
+    return res.status(400).json({ error: "Requester identity is required" });
+  }
+
+  const attachmentId = Number(req.params.id);
+  if (isNaN(attachmentId)) {
+    return res.status(400).json({ error: "Invalid attachment ID" });
+  }
+
+  try {
+    const attachment = await prisma.attachment.findUnique({
+      where: { id: attachmentId },
+      include: { ticket: true },
+    });
+
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    // Ownership Check
+    if (attachment.ticket.requesterId !== requesterId) {
+      return res.status(403).json({
+        error: "Forbidden: You do not own this attachment",
+      });
+    }
+
+    // Block download if soft-removed
+    if (attachment.isRemoved) {
+      return res.status(404).json({
+        error: "Attachment is removed and cannot be downloaded",
+      });
+    }
+
+    const filePath = attachment.storagePath || path.resolve(uploadDir, attachment.fileName);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "File not found on server" });
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${attachment.fileName}"`
+    );
+    res.setHeader("Content-Type", attachment.mimeType);
+    return res.sendFile(filePath);
+  } catch (error) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});

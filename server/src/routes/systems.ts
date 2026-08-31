@@ -3,8 +3,7 @@ import { getPrisma } from "../prisma.js";
 
 const router = Router();
 
-// GET /api/systems - ดึงเฉพาะ active systems เรียงตาม id หรือ name
-router.get("/systems", async (_req: Request, res: Response) => {
+const getSystemsHandler = async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     const systems = await prisma.relatedSystem.findMany({
@@ -13,9 +12,13 @@ router.get("/systems", async (_req: Request, res: Response) => {
     });
     return res.status(200).json(systems);
   } catch (error) {
-    console.error("GET /api/systems error:", error);
+    console.error("GET systems error:", error);
     return res.status(500).json({ error: "Failed to fetch systems" });
   }
-});
+};
+
+// รองรับทั้ง /api/related-systems และ /api/systems
+router.get("/related-systems", getSystemsHandler);
+router.get("/systems", getSystemsHandler);
 
 export default router;

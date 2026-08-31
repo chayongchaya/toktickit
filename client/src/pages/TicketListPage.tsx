@@ -37,10 +37,18 @@ export const TicketListPage: React.FC = () => {
     if (!currentRequester) return;
     setLoading(true);
 
-    fetch(`/api/tickets?requesterId=${currentRequester.id}`)
+    fetch(`/api/tickets?requesterId=${currentRequester.id}`, {
+      headers: {
+        "x-requester-id": currentRequester.id.toString(),
+      },
+    })
       .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setTickets(data);
+      .then((resData) => {
+        // ดึง array จาก resData.data หรือ resData ตรงๆ
+        const ticketList = Array.isArray(resData)
+          ? resData
+          : resData.data || resData.tickets || [];
+        setTickets(ticketList);
       })
       .catch((err) => console.error("Error fetching tickets:", err))
       .finally(() => setLoading(false));

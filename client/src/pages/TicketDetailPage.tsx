@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useRequester } from "../context/RequesterContext.js";
 
 interface AttachmentItem {
   id: number;
@@ -38,6 +39,7 @@ const MAX_ACTIVE_ATTACHMENTS = 5;
 export const TicketDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { currentRequester } = useRequester();
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +48,9 @@ export const TicketDetailPage: React.FC = () => {
   >("attachments");
 
   const fetchTicketDetails = () => {
+    if (!currentRequester) return;
     setLoading(true);
-    fetch(`/api/tickets/${id}`)
+    fetch(`/api/tickets/${id}?requesterId=${currentRequester.id}`)
       .then(async (res) => {
         if (!res.ok) {
           const errData = await res.json();
@@ -62,7 +65,7 @@ export const TicketDetailPage: React.FC = () => {
 
   useEffect(() => {
     fetchTicketDetails();
-  }, [id]);
+  }, [id, currentRequester]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -98,6 +101,9 @@ export const TicketDetailPage: React.FC = () => {
     // สร้าง FormData เพื่อส่งไฟล์จริงขึ้น Server
     const formData = new FormData();
     formData.append("file", file);
+    if (currentRequester) {
+      formData.append("requesterId", String(currentRequester.id));
+    }
 
     try {
       const res = await fetch(`/api/tickets/${ticket.id}/attachments`, {
@@ -128,7 +134,10 @@ export const TicketDetailPage: React.FC = () => {
       const res = await fetch(`/api/attachments/${attachmentId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ removalReason: reason.trim() }),
+        body: JSON.stringify({
+          removalReason: reason.trim(),
+          requesterId: currentRequester?.id,
+        }),
       });
 
       if (res.ok) {
@@ -571,7 +580,7 @@ export const TicketDetailPage: React.FC = () => {
                             {(att.fileSize / 1024).toFixed(2)} KB
                           </span>
                           <a
-                            href={`/api/attachments/${att.id}/download`}
+                            href={`/api/attachments/${att.id}/download?requesterId=${currentRequester?.id}`}
                             className="text-decoration-none small fw-semibold"
                             style={{ color: "#006B3C" }}
                             download
