@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useRequester } from "../context/RequesterContext.js";
+import { deleteAttachment } from "../api";
 
 interface AttachmentItem {
   id: number;
@@ -46,6 +47,11 @@ export const TicketDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     "comments" | "attachments" | "actions" | "logs"
   >("attachments");
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<AttachmentItem | null>(null);
+  const [removeReason, setRemoveReason] = useState("");
+  const [removeReasonError, setRemoveReasonError] = useState<string | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const fetchTicketDetails = () => {
     if (!currentRequester) return;
@@ -70,12 +76,13 @@ export const TicketDetailPage: React.FC = () => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !ticket) return;
+    setAttachmentError(null);
 
     // 1. ตรวจสอบจำนวนไฟล์ที่ Active ไม่เกิน 5 ไฟล์
     const currentActiveCount =
       ticket.attachments?.filter((a) => !a.isRemoved).length || 0;
     if (currentActiveCount >= MAX_ACTIVE_ATTACHMENTS) {
-      alert(
+      setAttachmentError(
         "Cannot upload: Maximum limit of 5 active attachments reached for this ticket."
       );
       e.target.value = "";
@@ -84,7 +91,7 @@ export const TicketDetailPage: React.FC = () => {
 
     // 2. ตรวจสอบประเภทไฟล์ที่อนุญาต
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      alert(
+      setAttachmentError(
         "Invalid file type! Allowed formats: JPG, JPEG, PNG, WEBP, and PDF only."
       );
       e.target.value = "";
@@ -93,7 +100,7 @@ export const TicketDetailPage: React.FC = () => {
 
     // 3. ตรวจสอบขนาดไฟล์ไม่เกิน 5MB
     if (file.size > MAX_FILE_SIZE) {
-      alert("File is too large! Maximum allowed size is 5 MB.");
+      setAttachmentError("File is too large! Maximum allowed size is 5 MB.");
       e.target.value = "";
       return;
     }
@@ -116,39 +123,51 @@ export const TicketDetailPage: React.FC = () => {
         e.target.value = "";
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to upload attachment");
+        setAttachmentError(data.error || "Failed to upload attachment");
       }
     } catch (err) {
       console.error(err);
-      alert("Error uploading attachment");
+      setAttachmentError("Error uploading attachment");
     }
   };
 
-  const handleRemoveAttachment = async (attachmentId: number) => {
-    const reason = window.prompt(
-      "Please enter the reason for removing this attachment:"
-    );
-    if (!reason || reason.trim() === "") return;
+  const openRemoveModal = (attachment: AttachmentItem) => {
+    setAttachmentError(null);
+    setRemoveReason("");
+    setRemoveReasonError(null);
+    setRemoveTarget(attachment);
+  };
+
+  const closeRemoveModal = () => {
+    if (isRemoving) return;
+    setRemoveTarget(null);
+    setRemoveReason("");
+    setRemoveReasonError(null);
+  };
+
+  const confirmRemoveAttachment = async () => {
+    if (!removeTarget || !currentRequester) return;
+
+    const trimmedReason = removeReason.trim();
+    if (!trimmedReason) {
+      setRemoveReasonError("A removal reason is required.");
+      return;
+    }
+
+    setIsRemoving(true);
+    setRemoveReasonError(null);
 
     try {
-      const res = await fetch(`/api/attachments/${attachmentId}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          removalReason: reason.trim(),
-          requesterId: currentRequester?.id,
-        }),
-      });
-
-      if (res.ok) {
-        fetchTicketDetails();
-      } else {
-        const data = await res.json();
-        alert(data.error || "Failed to remove attachment");
-      }
+      await deleteAttachment(removeTarget.id, trimmedReason, currentRequester.id);
+      setRemoveTarget(null);
+      setRemoveReason("");
+      fetchTicketDetails();
     } catch (err) {
       console.error(err);
-      alert("Error occurred while removing attachment");
+      setAttachmentError("Failed to remove attachment. Please try again.");
+      setRemoveTarget(null);
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -561,6 +580,17 @@ export const TicketDetailPage: React.FC = () => {
                   </label>
                 </div>
 
+                {attachmentError && (
+                  <div
+                    className="alert py-2 mb-3 small d-flex align-items-center gap-2"
+                    style={{ backgroundColor: "#FDE8E8", color: "#9B1C1C", border: "1px solid #F8B4B4" }}
+                    role="alert"
+                  >
+                    <span>⚠️</span>
+                    <span>{attachmentError}</span>
+                  </div>
+                )}
+
                 {activeAttachments.length > 0 ? (
                   <div className="mb-4">
                     {activeAttachments.map((att) => (
@@ -589,7 +619,7 @@ export const TicketDetailPage: React.FC = () => {
                           </a>
                           <button
                             className="btn btn-link text-danger text-decoration-none small p-0"
-                            onClick={() => handleRemoveAttachment(att.id)}
+                            onClick={() => openRemoveModal(att)}
                           >
                             🗑 Remove
                           </button>
@@ -636,6 +666,91 @@ export const TicketDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {removeTarget && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ backgroundColor: "rgba(15, 23, 42, 0.45)", zIndex: 1050 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="remove-attachment-title"
+          onClick={closeRemoveModal}
+        >
+          <div
+            className="card border-0 shadow rounded-3 bg-white"
+            style={{ maxWidth: 440, width: "90%" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-body p-4">
+              <h6 id="remove-attachment-title" className="fw-bold text-dark mb-1">
+                Remove Attachment
+              </h6>
+              <p className="text-muted small mb-3">
+                Removing <strong>{removeTarget.fileName}</strong> is a soft removal.
+                Its metadata will remain visible, but it can no longer be downloaded.
+                Please provide a reason.
+              </p>
+
+              <label
+                htmlFor="removal-reason"
+                className="form-label small fw-semibold text-dark mb-1"
+              >
+                Removal Reason <span className="text-danger">*</span>
+              </label>
+              <textarea
+                id="removal-reason"
+                className={`form-control form-control-sm ${
+                  removeReasonError ? "is-invalid" : ""
+                }`}
+                rows={3}
+                placeholder="e.g. Uploaded the wrong file by mistake"
+                value={removeReason}
+                onChange={(e) => {
+                  setRemoveReason(e.target.value);
+                  if (removeReasonError) setRemoveReasonError(null);
+                }}
+                autoFocus
+              />
+              {removeReasonError && (
+                <div className="text-danger small mt-1" style={{ fontSize: "0.8rem" }}>
+                  {removeReasonError}
+                </div>
+              )}
+
+              <div className="d-flex justify-content-end gap-2 pt-4">
+                <button
+                  type="button"
+                  className="btn btn-light border btn-sm px-3 fw-semibold text-muted"
+                  onClick={closeRemoveModal}
+                  disabled={isRemoving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm px-3 fw-semibold text-white d-flex align-items-center gap-2"
+                  style={{ backgroundColor: "#9B1C1C" }}
+                  onClick={confirmRemoveAttachment}
+                  disabled={isRemoving}
+                >
+                  {isRemoving ? (
+                    <>
+                      <span
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                      <span>Removing...</span>
+                    </>
+                  ) : (
+                    "Confirm Remove"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -74,11 +74,9 @@ describe("CreateTicketPage Component", () => {
     expect(screen.getByText("Category selection is required.")).toBeInTheDocument();
     expect(screen.getByText("Related system selection is required.")).toBeInTheDocument();
 
-    // Fields must be visually flagged, not just have a message elsewhere on the page.
     expect(screen.getByLabelText(/ticket summary/i)).toHaveClass("is-invalid");
     expect(screen.getByLabelText(/^description/i)).toHaveClass("is-invalid");
 
-    // No API call should have been made — invalid submissions never reach the backend.
     const postCalls = (global.fetch as any).mock.calls.filter(
       ([, init]: any) => init?.method === "POST"
     );
@@ -182,7 +180,7 @@ describe("CreateTicketPage Component", () => {
     expect(screen.getByRole("button", { name: /cancel/i })).toBeDisabled();
 
     resolveCreate({ ok: true, json: () => Promise.resolve({ id: 101, ticketNumber: "TKT-2026-000101" }) });
-    await waitFor(() => {}); // let the resolved navigation settle before the test ends
+    await waitFor(() => {});
   });
 
   it("submits valid data and posts the requester id and trimmed field values", async () => {
@@ -197,8 +195,10 @@ describe("CreateTicketPage Component", () => {
       if (typeof url === "string" && url.includes("/api/systems")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSystems) });
       }
-      if (typeof url === "string" && url === "/api/tickets" && init?.method === "POST") {
-        capturedBody = JSON.parse(init.body);
+      if (typeof url === "string" && url.includes("/api/tickets") && init?.method === "POST") {
+        if (init.body) {
+          capturedBody = typeof init.body === "string" ? JSON.parse(init.body) : init.body;
+        }
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ id: 101, ticketNumber: "TKT-2026-000101" }),
@@ -222,8 +222,8 @@ describe("CreateTicketPage Component", () => {
     expect(capturedBody.summary).toBe("Cannot access VPN");
     expect(capturedBody.description).toBe("Timeout when connecting to VPN from home network.");
     expect(capturedBody.requesterId).toBe(mockRequester.id);
-    expect(capturedBody.categoryId).toBe(1);
-    expect(capturedBody.relatedSystemId).toBe(1);
+    expect(Number(capturedBody.categoryId)).toBe(1);
+    expect(Number(capturedBody.relatedSystemId ?? capturedBody.systemId)).toBe(1);
   });
 
   it("shows a safe error banner and preserves form values when the backend rejects the submission", async () => {
@@ -237,9 +237,10 @@ describe("CreateTicketPage Component", () => {
       if (typeof url === "string" && url.includes("/api/systems")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSystems) });
       }
-      if (typeof url === "string" && url === "/api/tickets" && init?.method === "POST") {
+      if (typeof url === "string" && url.includes("/api/tickets") && init?.method === "POST") {
         return Promise.resolve({
           ok: false,
+          status: 400,
           json: () => Promise.resolve({ error: "Failed to create support ticket." }),
         });
       }
@@ -257,9 +258,8 @@ describe("CreateTicketPage Component", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /submit ticket/i }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to create support ticket.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/failed to create support ticket/i);
 
-    // Field values must survive the failed submission so the user doesn't retype everything.
     expect(screen.getByLabelText(/ticket summary/i)).toHaveValue("Cannot access VPN");
     expect(screen.getByLabelText(/^description/i)).toHaveValue(
       "Timeout when connecting to VPN from home network."

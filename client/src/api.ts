@@ -23,6 +23,7 @@ export interface Attachment {
   id: number;
   fileName: string;
   fileSize: number;
+  mimeType?: string;
   isRemoved: boolean;
   removalReason?: string | null;
   createdAt?: string;
@@ -34,6 +35,7 @@ export interface Ticket {
   summary: string;
   description: string;
   requestedPriority: string;
+  itPriority?: string;
   currentStatus: string;
   createdAt: string;
   updatedAt: string;
@@ -46,11 +48,19 @@ export interface Ticket {
   attachments?: Attachment[];
 }
 
-export interface TicketsResponse {
-  tickets: Ticket[];
+export interface Pagination {
   total: number;
   page: number;
+  pageSize: number;
   totalPages: number;
+}
+
+// Matches the actual shape returned by GET /api/tickets: { data, pagination }.
+// (The backend also echoes the array under `tickets` for backward compat —
+// intentionally not relied on here; `data` is the documented contract.)
+export interface TicketsResponse {
+  data: Ticket[];
+  pagination: Pagination;
 }
 
 export interface SystemStatus {
@@ -58,56 +68,94 @@ export interface SystemStatus {
   categories: Category[];
 }
 
+export interface CreateTicketInput {
+  summary: string;
+  description: string;
+  categoryId: number;
+  relatedSystemId: number;
+  requestedPriority: string;
+}
+
+export interface TicketListParams {
+  search?: string;
+  categoryId?: number | string;
+  requestedPriority?: string;
+  currentStatus?: string;
+  sortBy?: "ticketNumber" | "createdAt" | "updatedAt";
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * Shared response handler: parses the JSON body once, and on failure throws
+ * an Error using the backend's own `error` message when available instead of
+ * a hardcoded generic string. Falls back to `fallbackMessage` only when the
+ * body can't be parsed at all (e.g. network-level failure, non-JSON response).
+ */
+async function handleResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = (body && typeof body === "object" && "error" in body && body.error) || fallbackMessage;
+    throw new Error(message);
+  }
+  return body as T;
+}
+
 export async function checkSystem(): Promise<SystemStatus> {
   const healthRes = await fetch(`${API_URL}/api/health`);
   if (!healthRes.ok) throw new Error(`Health check failed: ${healthRes.status}`);
 
-  const categoriesRes = await fetch(`${API_URL}/api/categories`);
-  if (!categoriesRes.ok) throw new Error(`Categories failed: ${categoriesRes.status}`);
-
-  const categories: Category[] = await categoriesRes.json();
+  const categories = await getCategories();
   return { online: true, categories };
 }
 
 export async function getCategories(): Promise<Category[]> {
   const res = await fetch(`${API_URL}/api/categories`);
-  if (!res.ok) throw new Error("Failed to fetch categories");
-  return res.json();
+  return handleResponse<Category[]>(res, "Failed to fetch categories.");
 }
 
 export async function getSystems(): Promise<RelatedSystem[]> {
   const res = await fetch(`${API_URL}/api/systems`);
-  if (!res.ok) throw new Error("Failed to fetch systems");
-  return res.json();
+  return handleResponse<RelatedSystem[]>(res, "Failed to fetch related systems.");
 }
 
 export async function getRequesters(): Promise<RequesterUser[]> {
   const res = await fetch(`${API_URL}/api/requesters`);
-  if (!res.ok) throw new Error("Failed to fetch requesters");
-  return res.json();
+  return handleResponse<RequesterUser[]>(res, "Failed to fetch requesters.");
 }
 
 export async function getTickets(
   requesterId: number,
-  params: Record<string, any> = {}
+  params: TicketListParams = {}
 ): Promise<TicketsResponse> {
-  const query = new URLSearchParams({ requesterId: requesterId.toString(), ...params });
+  const queryParams: Record<string, string> = {
+    requesterId: requesterId.toString(),
+  };
+  if (params.search) queryParams.search = params.search;
+  if (params.categoryId != null) queryParams.categoryId = String(params.categoryId);
+  if (params.requestedPriority) queryParams.requestedPriority = params.requestedPriority;
+  if (params.currentStatus) queryParams.currentStatus = params.currentStatus;
+  if (params.sortBy) queryParams.sortBy = params.sortBy;
+  if (params.sortOrder) queryParams.sortOrder = params.sortOrder;
+  if (params.page != null) queryParams.page = String(params.page);
+  if (params.pageSize != null) queryParams.pageSize = String(params.pageSize);
+
+  const query = new URLSearchParams(queryParams);
   const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
     headers: { "x-requester-id": requesterId.toString() },
   });
-  if (!res.ok) throw new Error("Failed to fetch tickets");
-  return res.json();
+  return handleResponse<TicketsResponse>(res, "Failed to fetch tickets.");
 }
 
 export async function getTicketById(id: number | string, requesterId: number): Promise<Ticket> {
-  const res = await fetch(`${API_URL}/api/tickets/${id}?requesterId=${requesterId}`, {
+  const res = await fetch(`${API_URL}/api/tickets/${id}`, {
     headers: { "x-requester-id": requesterId.toString() },
   });
-  if (!res.ok) throw new Error("Failed to fetch ticket detail");
-  return res.json();
+  return handleResponse<Ticket>(res, "Failed to fetch ticket detail.");
 }
 
-export async function createTicket(ticketData: any, requesterId: number): Promise<Ticket> {
+export async function createTicket(ticketData: CreateTicketInput, requesterId: number): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets`, {
     method: "POST",
     headers: {
@@ -116,17 +164,31 @@ export async function createTicket(ticketData: any, requesterId: number): Promis
     },
     body: JSON.stringify({ ...ticketData, requesterId }),
   });
-  if (!res.ok) throw new Error("Failed to create ticket");
-  return res.json();
+  return handleResponse<Ticket>(res, "Failed to create ticket.");
+}
+
+export async function uploadAttachment(
+  ticketId: number | string,
+  file: File,
+  requesterId: number
+): Promise<Attachment> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
+    method: "POST",
+    headers: { "x-requester-id": requesterId.toString() },
+    body: formData,
+  });
+  return handleResponse<Attachment>(res, `Failed to upload "${file.name}".`);
 }
 
 export async function deleteAttachment(
-  ticketId: number,
   attachmentId: number,
   removalReason: string,
   requesterId: number
 ): Promise<Attachment> {
-  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments/${attachmentId}`, {
+  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
@@ -134,6 +196,5 @@ export async function deleteAttachment(
     },
     body: JSON.stringify({ removalReason }),
   });
-  if (!res.ok) throw new Error("Failed to remove attachment");
-  return res.json();
+  return handleResponse<Attachment>(res, "Failed to remove attachment.");
 }

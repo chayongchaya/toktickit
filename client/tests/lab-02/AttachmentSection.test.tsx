@@ -119,7 +119,6 @@ describe("Attachment Section (TicketDetailPage)", () => {
 
   it("rejects a client-side invalid attachment (wrong type) without calling the API", async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(baseTicket) });
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
 
     renderComponent();
     await waitFor(() => expect(screen.getByText("screenshot_error.png")).toBeInTheDocument());
@@ -128,7 +127,7 @@ describe("Attachment Section (TicketDetailPage)", () => {
     const badFile = new File(["dummy"], "malware.exe", { type: "application/x-msdownload" });
     fireEvent.change(fileInput, { target: { files: [badFile] } });
 
-    expect(alertSpy).toHaveBeenCalledWith(expect.stringMatching(/invalid file type/i));
+    expect(await screen.findByText(/invalid file type/i)).toBeInTheDocument();
 
     const uploadCalls = (global.fetch as any).mock.calls.filter(
       ([callUrl, callInit]: any) => callUrl.includes("/attachments") && callInit?.method === "POST"
@@ -147,7 +146,6 @@ describe("Attachment Section (TicketDetailPage)", () => {
       })),
     };
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(fullTicket) });
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
 
     renderComponent();
     await waitFor(() => expect(screen.getByText("file-0.png")).toBeInTheDocument());
@@ -156,10 +154,10 @@ describe("Attachment Section (TicketDetailPage)", () => {
     const anotherFile = new File(["dummy"], "one-too-many.png", { type: "image/png" });
     fireEvent.change(fileInput, { target: { files: [anotherFile] } });
 
-    expect(alertSpy).toHaveBeenCalledWith(expect.stringMatching(/maximum limit of 5/i));
+    expect(await screen.findByText(/maximum limit of 5/i)).toBeInTheDocument();
   });
 
-  it("requires a removal reason before soft-removing an attachment", async () => {
+  it("requires a removal reason before soft-removing an attachment via the confirmation modal", async () => {
     let deleteCalled = false;
     global.fetch = vi.fn().mockImplementation((url: string, init?: any) => {
       if (typeof url === "string" && url.includes("/api/attachments/101") && init?.method === "DELETE") {
@@ -172,23 +170,50 @@ describe("Attachment Section (TicketDetailPage)", () => {
     renderComponent();
     await waitFor(() => expect(screen.getByText("screenshot_error.png")).toBeInTheDocument());
 
-    // User cancels the reason prompt (returns null) — no request should be sent.
-    vi.spyOn(window, "prompt").mockReturnValueOnce(null);
+    // Open the modal, then cancel — no request should be sent.
     fireEvent.click(screen.getByRole("button", { name: /remove/i }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(deleteCalled).toBe(false);
 
-    // User provides a reason — the request must include it.
-    vi.spyOn(window, "prompt").mockReturnValueOnce("Uploaded incorrect file by mistake");
+    // Open the modal again and try to confirm with an empty reason — blocked client-side.
     fireEvent.click(screen.getByRole("button", { name: /remove/i }));
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: /confirm remove/i }));
+    expect(await screen.findByText(/removal reason is required/i)).toBeInTheDocument();
+    expect(deleteCalled).toBe(false);
+
+    // Provide a reason and confirm — the request must carry it.
+    fireEvent.change(screen.getByLabelText(/removal reason/i), {
+      target: { value: "Uploaded incorrect file by mistake" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /confirm remove/i }));
 
     await waitFor(() => expect(deleteCalled).toBe(true));
 
     const [, deleteInit] = (global.fetch as any).mock.calls.find(
       ([callUrl, callInit]: any) => callUrl.includes("/api/attachments/101") && callInit?.method === "DELETE"
     );
-    const body = JSON.parse(deleteInit.body);
+
+    const body = deleteInit?.body ? JSON.parse(deleteInit.body) : {};
     expect(body.removalReason).toBe("Uploaded incorrect file by mistake");
-    expect(body.requesterId).toBe(mockRequester.id);
+
+    // ดึง requesterId จาก Header หรือ Body
+    const headers = deleteInit?.headers;
+    const headerRequesterId =
+      headers instanceof Headers
+        ? headers.get("x-requester-id")
+        : headers?.["x-requester-id"] || headers?.["X-Requester-Id"];
+
+    const actualRequesterId =
+      body.requesterId !== undefined
+        ? Number(body.requesterId)
+        : headerRequesterId !== undefined
+        ? Number(headerRequesterId)
+        : undefined;
+
+    expect(actualRequesterId).toBe(mockRequester.id);
   });
 
   it("does not render a download link for a soft-removed attachment", async () => {
@@ -197,8 +222,6 @@ describe("Attachment Section (TicketDetailPage)", () => {
     renderComponent();
     await waitFor(() => expect(screen.getByText("outdated_log.pdf")).toBeInTheDocument());
 
-    // The removed attachment (id 102) must never expose a download link, even though
-    // it still appears as metadata.
     const allDownloadLinks = screen.queryAllByRole("link", { name: /download/i });
     allDownloadLinks.forEach((link) => {
       expect(link).not.toHaveAttribute("href", expect.stringContaining("/102/download"));

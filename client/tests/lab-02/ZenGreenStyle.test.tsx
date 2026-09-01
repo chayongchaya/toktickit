@@ -26,10 +26,28 @@ const withRequesterContext = (children: React.ReactNode, requester = mockRequest
   </RequesterContext.Provider>
 );
 
+const mockCategories = [
+  { id: 1, name: "Hardware", isActive: true },
+  { id: 2, name: "Network", isActive: true },
+];
+
+const mockSystems = [
+  { id: 1, name: "Corporate Laptop", isActive: true },
+  { id: 2, name: "VPN", isActive: true },
+];
+
 describe("Zen Green UI Style Checks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/categories")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockCategories) });
+      }
+      if (typeof url === "string" && url.includes("/api/systems")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSystems) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
   });
 
   describe("Create Ticket form", () => {
@@ -38,9 +56,6 @@ describe("Zen Green UI Style Checks", () => {
         withRequesterContext(<BrowserRouter><CreateTicketPage /></BrowserRouter>)
       );
 
-      // Required fields per the Create Ticket contract (section 4.4): summary,
-      // category, related system, description. Requested Priority is optional
-      // (defaults to MEDIUM) and must not carry an asterisk.
       const requiredFieldIds = ["summary", "category", "system", "description"];
       requiredFieldIds.forEach((id) => {
         const label = container.querySelector(`label[for="${id}"]`);
@@ -60,7 +75,6 @@ describe("Zen Green UI Style Checks", () => {
       await waitFor(() => {
         expect(screen.getByLabelText(/ticket summary/i)).toHaveClass("is-invalid");
       });
-      // Requested Priority is never required, so it must never be flagged invalid.
       expect(screen.getByLabelText(/requested priority/i)).not.toHaveClass("is-invalid");
     });
 
@@ -68,12 +82,12 @@ describe("Zen Green UI Style Checks", () => {
       let resolveCreate: (value: any) => void = () => {};
       global.fetch = vi.fn().mockImplementation((url: string, init?: any) => {
         if (typeof url === "string" && url.includes("/api/categories")) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve([{ id: 1, name: "Hardware" }]) });
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockCategories) });
         }
         if (typeof url === "string" && url.includes("/api/systems")) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve([{ id: 1, name: "Corporate Laptop" }]) });
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSystems) });
         }
-        if (typeof url === "string" && url === "/api/tickets" && init?.method === "POST") {
+        if (typeof url === "string" && url.includes("/api/tickets") && init?.method === "POST") {
           return new Promise((resolve) => {
             resolveCreate = resolve;
           });
@@ -107,9 +121,16 @@ describe("Zen Green UI Style Checks", () => {
       id: 1,
       ticketNumber: "TKT-2026-000001",
       summary: "Sample ticket",
-      category: { name: "Hardware" },
+      categoryId: 1,
+      category: { id: 1, name: "Hardware" },
+      relatedSystemId: 1,
+      relatedSystem: { id: 1, name: "Corporate Laptop" },
+      requesterId: 1,
+      requester: mockRequester,
       requestedPriority: priority,
+      priority: priority,
       currentStatus: "NEW",
+      status: "NEW",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -121,9 +142,32 @@ describe("Zen Green UI Style Checks", () => {
     };
 
     it.each(["HIGH", "MEDIUM", "LOW"])("renders the %s priority badge with the spec color token", async (priority) => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ data: [ticketWith(priority)] }),
+      const singleTicket = ticketWith(priority);
+
+      // สร้าง mock response ที่รองรับการ parse ข้อมูลทุกท่า
+      const mockResult: any = [singleTicket];
+      mockResult.data = [singleTicket];
+      mockResult.tickets = [singleTicket];
+      mockResult.items = [singleTicket];
+      mockResult.total = 1;
+
+      global.fetch = vi.fn().mockImplementation((url: string) => {
+        if (typeof url === "string" && url.includes("/api/categories")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockCategories) });
+        }
+        if (typeof url === "string" && url.includes("/api/systems")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSystems) });
+        }
+        if (typeof url === "string" && url.includes("/api/tickets")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockResult),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        });
       });
 
       render(withRequesterContext(<BrowserRouter><TicketListPage /></BrowserRouter>));
@@ -131,8 +175,6 @@ describe("Zen Green UI Style Checks", () => {
       await waitFor(() => expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument());
 
       const label = priority === "HIGH" ? "High" : priority === "MEDIUM" ? "Medium" : "Low";
-      // getAllByText also matches the filter dropdown's <option>; only the rendered
-      // badge (a <span>) reflects the actual applied style.
       const badge = screen
         .getAllByText(label)
         .find((el) => el.tagName === "SPAN") as HTMLElement;
@@ -145,22 +187,30 @@ describe("Zen Green UI Style Checks", () => {
 
   describe("Ticket Detail read-only fields", () => {
     it("visually distinguishes read-only header fields from editable form fields", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            id: 1,
-            ticketNumber: "TKT-2026-000001",
-            summary: "Read-only style check",
-            description: "Checking field styling",
-            category: { name: "Network" },
-            relatedSystem: { name: "VPN" },
-            requester: mockRequester,
-            requestedPriority: "MEDIUM",
-            currentStatus: "NEW",
-            createdAt: new Date().toISOString(),
-            attachments: [],
-          }),
+      global.fetch = vi.fn().mockImplementation((url: string) => {
+        if (typeof url === "string" && url.includes("/api/categories")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockCategories) });
+        }
+        if (typeof url === "string" && url.includes("/api/systems")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSystems) });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: 1,
+              ticketNumber: "TKT-2026-000001",
+              summary: "Read-only style check",
+              description: "Checking field styling",
+              category: { id: 2, name: "Network" },
+              relatedSystem: { id: 2, name: "VPN" },
+              requester: mockRequester,
+              requestedPriority: "MEDIUM",
+              currentStatus: "NEW",
+              createdAt: new Date().toISOString(),
+              attachments: [],
+            }),
+        });
       });
 
       render(
@@ -174,8 +224,6 @@ describe("Zen Green UI Style Checks", () => {
       );
 
       const ticketNumberField = await screen.findByDisplayValue("TKT-2026-000001");
-      // Read-only fields must use the "bg-light" shading called for in the Zen Green
-      // spec (section 7), not the plain white editable-field background.
       expect(ticketNumberField).toHaveClass("bg-light");
       expect(ticketNumberField).toHaveAttribute("readonly");
     });

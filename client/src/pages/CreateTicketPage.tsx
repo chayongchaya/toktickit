@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useRequester } from "../context/RequesterContext.js";
-
-interface OptionItem {
-  id: number;
-  name: string;
-}
+import {
+  getCategories,
+  getSystems,
+  createTicket,
+  uploadAttachment,
+  type Category,
+  type RelatedSystem,
+  type Ticket,
+} from "../api.js";
 
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -16,12 +20,18 @@ const ALLOWED_MIME_TYPES = [
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const MAX_ATTACHMENTS = 5;
 
+interface UploadOutcome {
+  fileName: string;
+  error: string;
+}
+
 export const CreateTicketPage: React.FC = () => {
   const { currentRequester } = useRequester();
   const navigate = useNavigate();
 
-  const [categories, setCategories] = useState<OptionItem[]>([]);
-  const [systems, setSystems] = useState<OptionItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [systems, setSystems] = useState<RelatedSystem[]>([]);
+  const [referenceDataError, setReferenceDataError] = useState<string | null>(null);
 
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
@@ -36,25 +46,23 @@ export const CreateTicketPage: React.FC = () => {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/categories")
-      .then((res) => res.json())
-      .then((data: OptionItem[]) => {
-        setCategories(data);
-      })
-      .catch((err) => {
-        console.error("Error fetching categories:", err);
-        setServerError("Unable to connect to service backend. Please verify your connection.");
-      });
+  // Success state — shown instead of the form once the ticket is created,
+  // so the generated Ticket Number is always visible (spec 8.3) and any
+  // attachment failures are surfaced instead of failing silently.
+  const [createdTicket, setCreatedTicket] = useState<Ticket | null>(null);
+  const [failedUploads, setFailedUploads] = useState<UploadOutcome[]>([]);
 
-    fetch("/api/systems")
-      .then((res) => res.json())
-      .then((data: OptionItem[]) => {
-        setSystems(data);
+  useEffect(() => {
+    Promise.all([getCategories(), getSystems()])
+      .then(([categoryData, systemData]) => {
+        setCategories(categoryData);
+        setSystems(systemData);
       })
       .catch((err) => {
-        console.error("Error fetching systems:", err);
-        setServerError("Unable to connect to service backend. Please verify your connection.");
+        console.error("Error fetching reference data:", err);
+        setReferenceDataError(
+          err.message || "Unable to load categories and related systems. Please try again."
+        );
       });
   }, []);
 
@@ -115,58 +123,128 @@ export const CreateTicketPage: React.FC = () => {
     }
     setFieldErrors({});
 
+    if (!currentRequester) {
+      setServerError("No Development Requester selected. Please select one before submitting.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // 1. ส่งข้อมูลสร้าง Ticket
-      const res = await fetch("/api/tickets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      // 1. Create the ticket. createTicket() surfaces the backend's own
+      // validation message (e.g. summary length) instead of a generic string.
+      const ticket = await createTicket(
+        {
           summary: summary.trim(),
           description: description.trim(),
           categoryId: Number(categoryId),
           relatedSystemId: Number(relatedSystemId),
           requestedPriority,
-          requesterId: currentRequester?.id,
-        }),
-      });
+        },
+        currentRequester.id
+      );
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to create support ticket.");
-      }
-
-      const createdTicket = await res.json();
-
-      // 2. อัปโหลดไฟล์แนบจริงทีละไฟล์ด้วย FormData
-      if (selectedFiles.length > 0 && createdTicket.id) {
-        for (const file of selectedFiles) {
-          const formData = new FormData();
-          formData.append("file", file);
-          if (currentRequester) {
-            formData.append("requesterId", String(currentRequester.id));
-          }
-
-          const attachRes = await fetch(`/api/tickets/${createdTicket.id}/attachments`, {
-            method: "POST",
-            body: formData,
+      // 2. Upload attachments one by one. Failures are collected instead of
+      // only logged, so the user can see exactly which files didn't make it.
+      const failures: UploadOutcome[] = [];
+      for (const file of selectedFiles) {
+        try {
+          await uploadAttachment(ticket.id, file, currentRequester.id);
+        } catch (uploadErr: any) {
+          failures.push({
+            fileName: file.name,
+            error: uploadErr.message || "Upload failed.",
           });
-
-          if (!attachRes.ok) {
-            const attachErr = await attachRes.json();
-            console.error(`Failed to upload ${file.name}:`, attachErr.error);
-          }
         }
       }
 
-      navigate("/tickets");
+      setCreatedTicket(ticket);
+      setFailedUploads(failures);
     } catch (err: any) {
       setServerError(err.message || "Network error: Service backend is unreachable.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleStartNewTicket = () => {
+    setCreatedTicket(null);
+    setFailedUploads([]);
+    setSummary("");
+    setDescription("");
+    setCategoryId("");
+    setRelatedSystemId("");
+    setRequestedPriority("MEDIUM");
+    setSelectedFiles([]);
+  };
+
+  // ---- Success state: shown after a ticket is created, replacing the form ----
+  if (createdTicket) {
+    return (
+      <div style={{ backgroundColor: "#F5F7F6", minHeight: "100vh" }} className="pb-5">
+        <div className="container py-4" style={{ maxWidth: 640 }}>
+          <div className="card border-0 shadow-sm rounded-3 p-4 bg-white text-center">
+            <div className="mb-3" style={{ fontSize: "2.5rem" }}>✅</div>
+            <h1 className="h5 fw-bold text-dark mb-2">Ticket Submitted Successfully</h1>
+            <p className="text-muted small mb-3">Your support ticket has been created and assigned:</p>
+
+            <div
+              className="rounded-3 p-3 mb-4"
+              style={{ backgroundColor: "#EAF6EF", border: "1px solid #D2EBD9" }}
+            >
+              <div className="text-muted small mb-1">Ticket Number</div>
+              <div className="h4 fw-bold mb-0" style={{ color: "#006B3C" }}>
+                {createdTicket.ticketNumber}
+              </div>
+            </div>
+
+            {failedUploads.length > 0 && (
+              <div
+                className="alert text-start py-2 mb-4 small"
+                style={{ backgroundColor: "#FEF3C7", color: "#854D0E", border: "1px solid #FDE68A" }}
+                role="alert"
+              >
+                <div className="fw-semibold mb-1">⚠️ Ticket created, but {failedUploads.length} file(s) did not upload:</div>
+                <ul className="mb-1 ps-3">
+                  {failedUploads.map((f, i) => (
+                    <li key={i}>
+                      <strong>{f.fileName}</strong> — {f.error}
+                    </li>
+                  ))}
+                </ul>
+                <div>You can add these files again from the Ticket Detail screen.</div>
+              </div>
+            )}
+
+            <div className="d-flex justify-content-center gap-2">
+              <button
+                type="button"
+                className="btn btn-light border btn-sm px-4 fw-semibold text-dark"
+                onClick={handleStartNewTicket}
+              >
+                Create Another Ticket
+              </button>
+              <Link
+                to={`/tickets/${createdTicket.id}`}
+                className="btn btn-sm px-4 fw-semibold text-white"
+                style={{ backgroundColor: "#006B3C" }}
+              >
+                View Ticket
+              </Link>
+              <button
+                type="button"
+                className="btn btn-sm px-4 fw-semibold text-white"
+                style={{ backgroundColor: "#0B7A46" }}
+                onClick={() => navigate("/tickets")}
+              >
+                Back to My Tickets
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ backgroundColor: "#F5F7F6", minHeight: "100vh" }} className="pb-5">
@@ -189,7 +267,19 @@ export const CreateTicketPage: React.FC = () => {
             <p className="text-muted small mb-0">Describe your technical issue and submit to the IT support desk.</p>
           </div>
 
-          {/* Backend / Safe Error Banner */}
+          {/* Reference-data load failure (categories/systems) */}
+          {referenceDataError && (
+            <div
+              className="alert py-2 mb-4 small d-flex align-items-center gap-2"
+              style={{ backgroundColor: "#FDE8E8", color: "#9B1C1C", border: "1px solid #F8B4B4" }}
+              role="alert"
+            >
+              <span>⚠️</span>
+              <span>{referenceDataError}</span>
+            </div>
+          )}
+
+          {/* Backend / Safe Error Banner (ticket creation failure) */}
           {serverError && (
             <div
               className="alert py-2 mb-4 small d-flex align-items-center gap-2"
