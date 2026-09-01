@@ -16,7 +16,6 @@ interface TicketDetail {
   ticketNumber: string;
   summary: string;
   description: string;
-  resolutionSummary?: string | null;
   currentStatus: string;
   requestedPriority: string;
   itPriority: string;
@@ -44,9 +43,6 @@ export const TicketDetailPage: React.FC = () => {
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<
-    "comments" | "attachments" | "actions" | "logs"
-  >("attachments");
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<AttachmentItem | null>(null);
   const [removeReason, setRemoveReason] = useState("");
@@ -439,18 +435,7 @@ export const TicketDetailPage: React.FC = () => {
 
           {/* Row 3 */}
           <div className="row g-3 mb-3">
-            <div className="col-md-3">
-              <label className="form-label small text-muted mb-1">
-                Ticket Owner
-              </label>
-              <input
-                type="text"
-                className="form-control form-control-sm bg-light"
-                readOnly
-                value="Unassigned"
-              />
-            </div>
-            <div className="col-md-9">
+            <div className="col-12">
               <label className="form-label small text-muted mb-1">
                 Summary
               </label>
@@ -476,193 +461,115 @@ export const TicketDetailPage: React.FC = () => {
             />
           </div>
 
-          {/* Resolution Summary */}
-          <div>
-            <label className="form-label small text-muted mb-1">
-              Resolution Summary
-            </label>
-            <input
-              type="text"
-              className="form-control form-control-sm bg-light text-muted fst-italic"
-              readOnly
-              value={
-                ticket.resolutionSummary || "No resolution summary available yet."
-              }
-            />
-          </div>
         </div>
 
-        {/* Tabs & Attachments Card */}
+        {/* Attachments Card */}
         <div className="card border-0 shadow-sm rounded-3 bg-white">
-          <div className="card-header bg-white border-bottom p-0">
-            <ul className="nav nav-tabs border-0 px-3">
-              <li className="nav-item">
-                <button
-                  className={`nav-link border-0 text-muted ${
-                    activeTab === "comments"
-                      ? "active border-bottom border-success border-3 fw-bold text-dark"
-                      : ""
-                  }`}
-                  onClick={() => setActiveTab("comments")}
-                >
-                  💬 Public Comments{" "}
-                  <span className="badge bg-secondary rounded-pill ms-1">0</span>
-                </button>
-              </li>
-              <li className="nav-item">
-                <button
-                  className={`nav-link border-0 ${
-                    activeTab === "attachments"
-                      ? "active border-bottom border-success border-3 fw-bold text-dark"
-                      : "text-muted"
-                  }`}
-                  style={
-                    activeTab === "attachments"
-                      ? { borderColor: "#006B3C" }
-                      : {}
-                  }
-                  onClick={() => setActiveTab("attachments")}
-                >
-                  📎 Attachments{" "}
-                  <span
-                    className="badge rounded-pill ms-1"
-                    style={{ backgroundColor: "#006B3C" }}
-                  >
-                    {activeAttachments.length}
-                  </span>
-                </button>
-              </li>
-              <li className="nav-item">
-                <button
-                  className={`nav-link border-0 text-muted ${
-                    activeTab === "actions"
-                      ? "active border-bottom border-success border-3 fw-bold text-dark"
-                      : ""
-                  }`}
-                  onClick={() => setActiveTab("actions")}
-                >
-                  🛠 Service Actions{" "}
-                  <span className="badge bg-secondary rounded-pill ms-1">0</span>
-                </button>
-              </li>
-              <li className="nav-item">
-                <button
-                  className={`nav-link border-0 text-muted ${
-                    activeTab === "logs"
-                      ? "active border-bottom border-success border-3 fw-bold text-dark"
-                      : ""
-                  }`}
-                  onClick={() => setActiveTab("logs")}
-                >
-                  ⏱ Event Log{" "}
-                  <span className="badge bg-secondary rounded-pill ms-1">0</span>
-                </button>
-              </li>
-            </ul>
+          <div className="card-header bg-white border-bottom px-4 py-3">
+            <div className="d-flex justify-content-between align-items-center">
+              <h6 className="fw-bold mb-0 text-dark">Attachments</h6>
+              <span
+                className="badge rounded-pill"
+                style={{ backgroundColor: "#006B3C" }}
+              >
+                {activeAttachments.length}
+              </span>
+            </div>
           </div>
 
           <div className="card-body p-4">
-            {activeTab === "attachments" && (
-              <div>
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h6 className="fw-bold mb-0 text-dark">Attached Files</h6>
-                  <label
-                    className="btn btn-sm text-white px-3 mb-0 fw-semibold"
-                    style={{ backgroundColor: "#006B3C", cursor: "pointer" }}
-                  >
-                    + Add Attachment
-                    <input
-                      type="file"
-                      hidden
-                      accept=".jpg,.jpeg,.png,.webp,.pdf"
-                      onChange={handleFileUpload}
-                    />
-                  </label>
+            <div>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h6 className="fw-bold mb-0 text-dark">Attached Files</h6>
+                <label
+                  className="btn btn-sm text-white px-3 mb-0 fw-semibold"
+                  style={{ backgroundColor: "#006B3C", cursor: "pointer" }}
+                >
+                  + Add Attachment
+                  <input
+                    type="file"
+                    hidden
+                    accept=".jpg,.jpeg,.png,.webp,.pdf"
+                    onChange={handleFileUpload}
+                  />
+                </label>
+              </div>
+
+              {attachmentError && (
+                <div
+                  className="alert py-2 mb-3 small d-flex align-items-center gap-2"
+                  style={{ backgroundColor: "#FDE8E8", color: "#9B1C1C", border: "1px solid #F8B4B4" }}
+                  role="alert"
+                >
+                  <span>⚠️</span>
+                  <span>{attachmentError}</span>
                 </div>
+              )}
 
-                {attachmentError && (
-                  <div
-                    className="alert py-2 mb-3 small d-flex align-items-center gap-2"
-                    style={{ backgroundColor: "#FDE8E8", color: "#9B1C1C", border: "1px solid #F8B4B4" }}
-                    role="alert"
-                  >
-                    <span>⚠️</span>
-                    <span>{attachmentError}</span>
-                  </div>
-                )}
-
-                {activeAttachments.length > 0 ? (
-                  <div className="mb-4">
-                    {activeAttachments.map((att) => (
-                      <div
-                        key={att.id}
-                        className="d-flex justify-content-between align-items-center py-2 border-bottom"
-                      >
-                        <div className="d-flex align-items-center gap-2">
-                          <span>📄</span>
-                          <span className="fw-medium text-dark">
-                            {att.fileName}
-                          </span>
-                        </div>
-                        <div className="d-flex align-items-center gap-4">
-                          <span className="text-muted small">File type</span>
-                          <span className="text-muted small">
-                            {(att.fileSize / 1024).toFixed(2)} KB
-                          </span>
-                          <a
-                            href={`/api/attachments/${att.id}/download?requesterId=${currentRequester?.id}`}
-                            className="text-decoration-none small fw-semibold"
-                            style={{ color: "#006B3C" }}
-                            download
-                          >
-                            📥 Download
-                          </a>
-                          <button
-                            className="btn btn-link text-danger text-decoration-none small p-0"
-                            onClick={() => openRemoveModal(att)}
-                          >
-                            🗑 Remove
-                          </button>
-                        </div>
+              {activeAttachments.length > 0 ? (
+                <div className="mb-4">
+                  {activeAttachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className="d-flex justify-content-between align-items-center py-2 border-bottom"
+                    >
+                      <div className="d-flex align-items-center gap-2">
+                        <span>📄</span>
+                        <span className="fw-medium text-dark">
+                          {att.fileName}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted small fst-italic mb-4">
-                    No attachments uploaded for this ticket.
-                  </p>
-                )}
-
-                {removedAttachments.length > 0 && (
-                  <div className="mt-4 pt-3 border-top">
-                    <h6 className="fw-bold mb-3 text-muted">Removed Files</h6>
-                    {removedAttachments.map((att) => (
-                      <div
-                        key={att.id}
-                        className="d-flex justify-content-between align-items-center py-2 border-bottom text-muted small"
-                      >
-                        <div className="d-flex align-items-center gap-2">
-                          <span>📄</span>
-                          <span className="text-decoration-line-through">
-                            {att.fileName}
-                          </span>
-                        </div>
-                        <div className="text-danger">
-                          Removal reason:{" "}
-                          {att.removalReason || "Removed by requester"}
-                        </div>
+                      <div className="d-flex align-items-center gap-4">
+                        <span className="text-muted small">File type</span>
+                        <span className="text-muted small">
+                          {(att.fileSize / 1024).toFixed(2)} KB
+                        </span>
+                        <a
+                          href={`/api/attachments/${att.id}/download?requesterId=${currentRequester?.id}`}
+                          className="text-decoration-none small fw-semibold"
+                          style={{ color: "#006B3C" }}
+                          download
+                        >
+                          📥 Download
+                        </a>
+                        <button
+                          className="btn btn-link text-danger text-decoration-none small p-0"
+                          onClick={() => openRemoveModal(att)}
+                        >
+                          🗑 Remove
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted small fst-italic mb-4">
+                  No attachments uploaded for this ticket.
+                </p>
+              )}
 
-            {activeTab !== "attachments" && (
-              <div className="text-center py-4 text-muted small fst-italic">
-                This section will be implemented in later labs.
-              </div>
-            )}
+              {removedAttachments.length > 0 && (
+                <div className="mt-4 pt-3 border-top">
+                  <h6 className="fw-bold mb-3 text-muted">Removed Files</h6>
+                  {removedAttachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className="d-flex justify-content-between align-items-center py-2 border-bottom text-muted small"
+                    >
+                      <div className="d-flex align-items-center gap-2">
+                        <span>📄</span>
+                        <span className="text-decoration-line-through">
+                          {att.fileName}
+                        </span>
+                      </div>
+                      <div className="text-danger">
+                        Removal reason: {att.removalReason || "Removed by requester"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
