@@ -55,9 +55,6 @@ export interface Pagination {
   totalPages: number;
 }
 
-// Matches the actual shape returned by GET /api/tickets: { data, pagination }.
-// (The backend also echoes the array under `tickets` for backward compat —
-// intentionally not relied on here; `data` is the documented contract.)
 export interface TicketsResponse {
   data: Ticket[];
   pagination: Pagination;
@@ -87,16 +84,12 @@ export interface TicketListParams {
   pageSize?: number;
 }
 
-/**
- * Shared response handler: parses the JSON body once, and on failure throws
- * an Error using the backend's own `error` message when available instead of
- * a hardcoded generic string. Falls back to `fallbackMessage` only when the
- * body can't be parsed at all (e.g. network-level failure, non-JSON response).
- */
 async function handleResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
-    const message = (body && typeof body === "object" && "error" in body && body.error) || fallbackMessage;
+    const message =
+      (body && typeof body === "object" && "error" in body && body.error) ||
+      fallbackMessage;
     throw new Error(message);
   }
   return body as T;
@@ -139,7 +132,7 @@ export async function getTickets(
   if (params.sortBy) queryParams.sortBy = params.sortBy;
   if (params.sortOrder) queryParams.sortOrder = params.sortOrder;
   if (params.page != null) queryParams.page = String(params.page);
-  if (params.pageSize != null) queryParams.pageSize = String(params.pageSize);
+  if (params.pageSize != null) queryParams.pageSize = String(params.page);
 
   const query = new URLSearchParams(queryParams);
   const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
@@ -155,7 +148,10 @@ export async function getTicketById(id: number | string, requesterId: number): P
   return handleResponse<Ticket>(res, "Failed to fetch ticket detail.");
 }
 
-export async function createTicket(ticketData: CreateTicketInput, requesterId: number): Promise<Ticket> {
+export async function createTicket(
+  ticketData: CreateTicketInput,
+  requesterId: number
+): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets`, {
     method: "POST",
     headers: {
@@ -174,6 +170,10 @@ export async function uploadAttachment(
 ): Promise<Attachment> {
   const formData = new FormData();
   formData.append("file", file);
+
+  // Keep the existing FormData contract expected by the component test,
+  // while also sending the requester identity in the standard header.
+  formData.append("requesterId", String(requesterId));
 
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
     method: "POST",
