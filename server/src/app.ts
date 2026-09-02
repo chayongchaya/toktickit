@@ -25,6 +25,7 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     const categories = await prisma.category.findMany({
+      where: { isActive: true },
       select: {
         id: true,
         name: true,
@@ -40,9 +41,13 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
 });
 
 // Routes สำหรับ Lab 2
+// systemRoutes already defines its own "/related-systems" and "/systems"
+// sub-paths, so mounting it once at "/api" is enough to expose both
+// GET /api/related-systems and GET /api/systems. Mounting it again at
+// "/api/related-systems" was dead/broken code (it would resolve to
+// "/api/related-systems/related-systems") and has been removed.
 app.use("/api", requesterRoutes);
 app.use("/api", systemRoutes);
-app.use("/api/related-systems", systemRoutes); // รองรับทั้ง /api/related-systems
 app.use("/api/tickets", ticketsRouter);
 app.use("/api/attachments", attachmentsRouter);
 

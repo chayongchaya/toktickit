@@ -69,17 +69,18 @@ model Ticket {
 }
 
 model Attachment {
-  id            Int       @id @default(autoincrement())
-  ticketId      Int
-  ticket        Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  fileName      String
-  fileSize      Int
-  mimeType      String
-  storagePath   String
-  isRemoved     Boolean   @default(false)
-  removalReason String?
-  removedAt     DateTime?
-  createdAt     DateTime  @default(now())
+  id               Int       @id @default(autoincrement())
+  ticketId         Int
+  ticket           Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fileName         String // internally generated storage filename (on disk, never shown to the user)
+  originalFileName String    @default("") // requester's original upload filename, shown in the UI
+  fileSize         Int
+  mimeType         String
+  storagePath      String
+  isRemoved        Boolean   @default(false)
+  removalReason    String?
+  removedAt        DateTime?
+  createdAt        DateTime  @default(now())
 
   @@index([ticketId])
 }

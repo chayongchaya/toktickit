@@ -21,7 +21,8 @@ export interface RequesterUser {
 
 export interface Attachment {
   id: number;
-  fileName: string;
+  fileName: string; // internal storage filename — never show this in the UI
+  originalFileName: string; // requester's original upload name — use this for display
   fileSize: number;
   mimeType?: string;
   isRemoved: boolean;
@@ -132,7 +133,7 @@ export async function getTickets(
   if (params.sortBy) queryParams.sortBy = params.sortBy;
   if (params.sortOrder) queryParams.sortOrder = params.sortOrder;
   if (params.page != null) queryParams.page = String(params.page);
-  if (params.pageSize != null) queryParams.pageSize = String(params.page);
+  if (params.pageSize != null) queryParams.pageSize = String(params.pageSize);
 
   const query = new URLSearchParams(queryParams);
   const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
