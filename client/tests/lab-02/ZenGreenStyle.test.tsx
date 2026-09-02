@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -172,10 +172,14 @@ describe("Zen Green UI Style Checks", () => {
 
       render(withRequesterContext(<BrowserRouter><TicketListPage /></BrowserRouter>));
 
-      await waitFor(() => expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument());
+      // Scoped to the desktop table view: TicketListPage also renders a mobile
+      // card list in parallel (jsdom doesn't evaluate the CSS media query that
+      // hides it), which would otherwise duplicate every badge match below.
+      const tableView = () => screen.getByTestId("ticket-table-view");
+      await waitFor(() => expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument());
 
       const label = priority === "HIGH" ? "High" : priority === "MEDIUM" ? "Medium" : "Low";
-      const badge = screen
+      const badge = within(tableView())
         .getAllByText(label)
         .find((el) => el.tagName === "SPAN") as HTMLElement;
       expect(badge).toBeTruthy();

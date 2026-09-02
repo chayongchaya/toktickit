@@ -352,7 +352,8 @@ export const TicketListPage: React.FC = () => {
 
         {/* Table Card */}
         <div className="card border-0 shadow-sm rounded-3 overflow-hidden bg-white">
-          <div className="table-responsive">
+          {/* Desktop / Tablet: data table (>= 768px) */}
+          <div className="table-responsive d-none d-md-block" data-testid="ticket-table-view">
             <table className="table align-middle mb-0" style={{ fontSize: "0.85rem" }}>
               <thead style={{ backgroundColor: "#EAF6EF" }}>
                 <tr className="text-secondary">
@@ -450,6 +451,73 @@ export const TicketListPage: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile: card list, zero horizontal scrolling (< 768px) */}
+          <div className="d-md-none" data-testid="ticket-card-list">
+            {loading ? (
+              <div className="text-center py-5 text-muted">Loading tickets...</div>
+            ) : tickets.length === 0 ? (
+              <div className="text-center py-5 text-muted fst-italic px-3">
+                {hasActiveFilters
+                  ? "No matching tickets found."
+                  : "No tickets found for this requester."}
+              </div>
+            ) : (
+              <div className="d-flex flex-column">
+                {tickets.map((t) => (
+                  <div
+                    key={t.id}
+                    className="p-3 border-bottom"
+                    style={{ fontSize: "0.85rem" }}
+                    data-testid="ticket-card"
+                  >
+                    <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                      <Link
+                        to={`/tickets/${t.id}`}
+                        className="fw-bold text-decoration-none"
+                        style={{ color: "#006B3C" }}
+                      >
+                        {t.ticketNumber}
+                      </Link>
+                      {getStatusBadge(t.currentStatus)}
+                    </div>
+
+                    <div className="fw-medium text-dark mb-2">{t.summary}</div>
+
+                    <div className="text-muted mb-2">
+                      <span className="fw-semibold">Category:</span> {t.category?.name || "-"}
+                    </div>
+
+                    <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                      <span className="text-muted">Requested:</span>
+                      {getPriorityBadge(t.requestedPriority)}
+                      <span className="text-muted">IT:</span>
+                      {getPriorityBadge(t.itPriority || t.requestedPriority)}
+                    </div>
+
+                    <div className="d-flex justify-content-between text-muted" style={{ fontSize: "0.78rem" }}>
+                      <span>
+                        Created{" "}
+                        {new Date(t.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                      <span>
+                        Updated{" "}
+                        {new Date(t.updatedAt || t.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Pagination Footer */}

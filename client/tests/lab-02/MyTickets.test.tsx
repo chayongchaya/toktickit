@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, within, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { TicketListPage } from "../../src/pages/TicketListPage";
@@ -7,6 +7,14 @@ import { RequesterContext } from "../../src/context/RequesterContext";
 // Covers: AC-06 (search/filter/sort/pagination — now server-driven, not client-side
 // slicing), AC-03 (requester isolation, UI-side), section 4.3 (distinct empty vs
 // no-results states).
+//
+// NOTE: TicketListPage renders two parallel views of the same data — a desktop/tablet
+// <table> (`d-none d-md-block`) and a mobile card list (`d-md-none`, data-testid
+// "ticket-card-list"). jsdom does not evaluate CSS media queries, so both are present
+// in the DOM at once during tests even though only one is visible in a real browser.
+// These tests assert against the desktop table, so ticket-row assertions are scoped
+// with `within(tableView())` to avoid "multiple elements found" errors from the
+// duplicate card markup. Card-specific behavior belongs in a separate test file.
 
 const requesterA = { id: 1, name: "Jennifer Anderson", email: "jennifer@example.com", isActive: true };
 const requesterB = { id: 2, name: "Michael Brown", email: "michael.brown@example.com", isActive: true };
@@ -149,6 +157,10 @@ const lastTicketsCall = (fetchMock: any) =>
 
 const lastTicketsUrl = (fetchMock: any) => toUrlString(lastTicketsCall(fetchMock)[0]);
 
+// Scope assertions to the desktop table view (see NOTE at top of file) so they
+// don't collide with the parallel mobile card list that jsdom also renders.
+const tableView = () => screen.getByTestId("ticket-table-view");
+
 describe("TicketListPage (My Tickets) Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -160,7 +172,7 @@ describe("TicketListPage (My Tickets) Component", () => {
     renderComponent(requesterA);
 
     await waitFor(() => {
-      expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument();
+      expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument();
     });
 
     const call = lastTicketsCall(global.fetch);
@@ -175,7 +187,7 @@ describe("TicketListPage (My Tickets) Component", () => {
 
     renderComponent();
 
-    await waitFor(() => expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument());
+    await waitFor(() => expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument());
 
     const url = lastTicketsUrl(global.fetch);
     expect(url).toContain("page=1");
@@ -188,8 +200,8 @@ describe("TicketListPage (My Tickets) Component", () => {
     renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument();
-      expect(screen.getByText("Laptop Screen Flickering")).toBeInTheDocument();
+      expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument();
+      expect(within(tableView()).getByText("Laptop Screen Flickering")).toBeInTheDocument();
     });
   });
 
@@ -199,7 +211,7 @@ describe("TicketListPage (My Tickets) Component", () => {
     renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText(/No tickets found for this requester\./i)).toBeInTheDocument();
+      expect(within(tableView()).getByText(/No tickets found for this requester\./i)).toBeInTheDocument();
     });
   });
 
@@ -208,7 +220,7 @@ describe("TicketListPage (My Tickets) Component", () => {
 
     renderComponent();
 
-    await waitFor(() => expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument());
+    await waitFor(() => expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument());
 
     fireEvent.change(screen.getByPlaceholderText(/search by ticket number or summary/i), {
       target: { value: "nonexistent-search-term" },
@@ -217,8 +229,10 @@ describe("TicketListPage (My Tickets) Component", () => {
     // Search is debounced (350ms) before it's sent to the backend.
     await waitFor(
       () => {
-        expect(screen.getByText(/No matching tickets found\./i)).toBeInTheDocument();
-        expect(screen.queryByText(/No tickets found for this requester\./i)).not.toBeInTheDocument();
+        expect(within(tableView()).getByText(/No matching tickets found\./i)).toBeInTheDocument();
+        expect(
+          within(tableView()).queryByText(/No tickets found for this requester\./i)
+        ).not.toBeInTheDocument();
       },
       { timeout: 1500 }
     );
@@ -229,8 +243,8 @@ describe("TicketListPage (My Tickets) Component", () => {
 
     renderComponent();
 
-    await waitFor(() => expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument());
-    expect(screen.getByText("TKT-2026-000002")).toBeInTheDocument();
+    await waitFor(() => expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument());
+    expect(within(tableView()).getByText("TKT-2026-000002")).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText(/search by ticket number or summary/i), {
       target: { value: "VPN" },
@@ -238,8 +252,8 @@ describe("TicketListPage (My Tickets) Component", () => {
 
     await waitFor(
       () => {
-        expect(screen.queryByText("TKT-2026-000001")).not.toBeInTheDocument();
-        expect(screen.getByText("TKT-2026-000002")).toBeInTheDocument();
+        expect(within(tableView()).queryByText("TKT-2026-000001")).not.toBeInTheDocument();
+        expect(within(tableView()).getByText("TKT-2026-000002")).toBeInTheDocument();
       },
       { timeout: 1500 }
     );
@@ -253,7 +267,7 @@ describe("TicketListPage (My Tickets) Component", () => {
 
     renderComponent();
 
-    await waitFor(() => expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument());
+    await waitFor(() => expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument());
 
     // Category options come from GET /api/categories, not a static list.
     expect(screen.getByRole("option", { name: "Hardware" })).toBeInTheDocument();
@@ -264,8 +278,8 @@ describe("TicketListPage (My Tickets) Component", () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByText("TKT-2026-000001")).not.toBeInTheDocument();
-      expect(screen.getByText("TKT-2026-000002")).toBeInTheDocument();
+      expect(within(tableView()).queryByText("TKT-2026-000001")).not.toBeInTheDocument();
+      expect(within(tableView()).getByText("TKT-2026-000002")).toBeInTheDocument();
     });
 
     const url = lastTicketsUrl(global.fetch);
@@ -290,7 +304,7 @@ describe("TicketListPage (My Tickets) Component", () => {
       </RequesterContext.Provider>
     );
 
-    await waitFor(() => expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument());
+    await waitFor(() => expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument());
 
     rerender(
       <RequesterContext.Provider
@@ -308,8 +322,8 @@ describe("TicketListPage (My Tickets) Component", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByText("TKT-2026-000001")).not.toBeInTheDocument();
-      expect(screen.getByText(/No tickets found for this requester\./i)).toBeInTheDocument();
+      expect(within(tableView()).queryByText("TKT-2026-000001")).not.toBeInTheDocument();
+      expect(within(tableView()).getByText(/No tickets found for this requester\./i)).toBeInTheDocument();
     });
   });
 
@@ -317,7 +331,7 @@ describe("TicketListPage (My Tickets) Component", () => {
     global.fetch = makeFetchMock([oneTicket]);
 
     renderComponent();
-    await waitFor(() => expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument());
+    await waitFor(() => expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument());
 
     // Default sort on mount: createdAt desc.
     let url = lastTicketsUrl(global.fetch);
@@ -392,7 +406,7 @@ describe("TicketListPage (My Tickets) Component", () => {
 
     renderComponent();
 
-    await waitFor(() => expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument());
+    await waitFor(() => expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument());
     expect(screen.queryByText(/Ticket Owner/i)).not.toBeInTheDocument();
   });
 });
