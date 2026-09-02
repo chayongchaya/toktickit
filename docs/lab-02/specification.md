@@ -76,6 +76,16 @@ The IT department needs a functional, responsive web interface for requesters to
 - **AC-04**: Given an attachment file > 5 MB or invalid MIME type, when attempting upload, then it is rejected with a clear field-level error.
 - **AC-05**: Given an active attachment, when soft-removed with a valid reason, then `isRemoved` is set to true, metadata remains visible, and download attempts return 404/410.
 - **AC-06**: Given search/filter parameters, when querying My Tickets, then only matching tickets belonging to the current requester are returned.
+- **AC-07**: Given the Development Requester list is being fetched, when the Selection screen is open, then a loading indicator is shown and Continue is disabled until the fetch resolves.
+- **AC-08**: Given no active Development Requesters exist, when the Selection screen loads, then an explicit empty-state message is shown and Continue remains disabled.
+- **AC-09**: Given the `/api/requesters` request fails, when the Selection screen loads, then a safe failure message is shown instead of a blank or broken screen.
+- **AC-10**: Given multiple tickets are created concurrently, when Ticket Numbers are generated, then every Ticket Number remains unique.
+- **AC-11**: Given a requester id belongs to an inactive Development Requester, when that id is used directly against the API (bypassing the UI selector), then ticket creation and attachment upload are rejected.
+- **AC-12**: Given a file is uploaded as an attachment, when its metadata is later displayed, then the requester's original file name is shown — never the internally generated storage file name.
+
+*(AC-07–AC-12 were referenced by `tests.md` before being formally defined here. They are
+added in this revision to close that traceability gap — every AC referenced by a planned
+test must exist in this section.)*
 
 ## 10. Definition of Done
 - [ ] All functional requirements and business rules implemented.

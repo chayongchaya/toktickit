@@ -1,47 +1,54 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { getRequesters, RequesterUser } from "../api";
 
-export interface Requester {
-  id: number;
-  name: string;
-  email: string;
-  isActive: boolean;
+export interface RequesterContextType {
+  currentRequester: RequesterUser | null;
+  setCurrentRequester: (requester: RequesterUser | null) => void;
+  requesters: RequesterUser[];
+  loading: boolean;
 }
 
-interface RequesterContextType {
-  currentRequester: Requester | null;
-  setCurrentRequester: (user: Requester | null) => void;
-  isLoading: boolean;
-}
-
-const RequesterContext = createContext<RequesterContextType | undefined>(undefined);
+export const RequesterContext = createContext<RequesterContextType | undefined>(undefined);
 
 export const RequesterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentRequester, setCurrentRequesterState] = useState<Requester | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [requesters, setRequesters] = useState<RequesterUser[]>([]);
+  const [currentRequester, setCurrentRequesterState] = useState<RequesterUser | null>(() => {
+    const saved = localStorage.getItem("selectedRequester");
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem("toktickit_requester");
-    if (saved) {
-      try {
-        setCurrentRequesterState(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse requester from localStorage", e);
-      }
-    }
-    setIsLoading(false);
+    getRequesters()
+      .then((data) => {
+        setRequesters(data);
+        if (currentRequester) {
+          const matched = data.find((r) => r.id === currentRequester.id);
+          if (matched) setCurrentRequesterState(matched);
+        }
+      })
+      .catch((err) => console.error("Failed to load requesters", err))
+      .finally(() => setLoading(false));
   }, []);
 
-  const setCurrentRequester = (user: Requester | null) => {
-    setCurrentRequesterState(user);
-    if (user) {
-      localStorage.setItem("toktickit_requester", JSON.stringify(user));
+  const setCurrentRequester = (requester: RequesterUser | null) => {
+    setCurrentRequesterState(requester);
+    if (requester) {
+      localStorage.setItem("selectedRequester", JSON.stringify(requester));
     } else {
-      localStorage.removeItem("toktickit_requester");
+      localStorage.removeItem("selectedRequester");
     }
   };
 
   return (
-    <RequesterContext.Provider value={{ currentRequester, setCurrentRequester, isLoading }}>
+    <RequesterContext.Provider
+      value={{
+        currentRequester,
+        setCurrentRequester,
+        requesters,
+        loading,
+      }}
+    >
       {children}
     </RequesterContext.Provider>
   );

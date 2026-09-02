@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useRequester } from "../context/RequesterContext.js";
+import { useRequester } from "../context/RequesterContext";
+import { getCategories, type Category } from "../api";
 
 interface TicketItem {
   id: number;
@@ -10,109 +11,155 @@ interface TicketItem {
   currentStatus: string;
   requestedPriority: string;
   itPriority?: string;
-  ticketOwner?: string;
   createdAt: string;
   updatedAt: string;
   category: { id: number; name: string };
   relatedSystem: { id: number; name: string };
 }
 
+interface Pagination {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+type SortField = "ticketNumber" | "createdAt" | "updatedAt";
+
+const PAGE_SIZE = 8;
+const SEARCH_DEBOUNCE_MS = 350;
+
 export const TicketListPage: React.FC = () => {
   const { currentRequester } = useRequester();
-  const [tickets, setTickets] = useState<TicketItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // Filter States
-  const [search, setSearch] = useState("");
+  const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [pagination, setPagination] = useState<Pagination>({
+    total: 0,
+    page: 1,
+    pageSize: PAGE_SIZE,
+    totalPages: 1,
+  });
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Filter states
+  const [searchInput, setSearchInput] = useState(""); // ค่าที่พิมพ์ดิบๆ
+  const [search, setSearch] = useState(""); // ค่าหลัง debounce ที่จะยิงจริง
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
-  const [itPriorityFilter, setItPriorityFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  // Pagination States
+  // Pagination / sort state
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 8;
+  const [sortBy, setSortBy] = useState<SortField>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  const fetchTickets = () => {
-    if (!currentRequester) return;
-    setLoading(true);
-
-    fetch(`/api/tickets?requesterId=${currentRequester.id}`, {
-      headers: {
-        "x-requester-id": currentRequester.id.toString(),
-      },
-    })
-      .then((res) => res.json())
-      .then((resData) => {
-        // ดึง array จาก resData.data หรือ resData ตรงๆ
-        const ticketList = Array.isArray(resData)
-          ? resData
-          : resData.data || resData.tickets || [];
-        setTickets(ticketList);
-      })
-      .catch((err) => console.error("Error fetching tickets:", err))
-      .finally(() => setLoading(false));
-  };
-
+  // --- Debounce การค้นหา ---
   useEffect(() => {
-    fetchTickets();
-  }, [currentRequester]);
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  // Client-Side Instant Filtering
-  const filteredTickets = useMemo(() => {
-    return tickets.filter((t) => {
-      // 1. Search filter (Ticket Number หรือ Summary)
-      if (search.trim()) {
-        const query = search.toLowerCase().trim();
-        const matchNumber = t.ticketNumber?.toLowerCase().includes(query);
-        const matchSummary = t.summary?.toLowerCase().includes(query);
-        if (!matchNumber && !matchSummary) return false;
-      }
+  // --- โหลด category list จาก DB จริง (แทนการ hardcode) ---
+  useEffect(() => {
+    getCategories()
+      .then(setCategories)
+      .catch((err) => console.error("Failed to load categories:", err));
+  }, []);
 
-      // 2. Category filter
-      if (categoryFilter !== "ALL") {
-        if (t.category?.name !== categoryFilter) return false;
-      }
-
-      // 3. Requested Priority filter
-      if (priorityFilter !== "ALL") {
-        if (t.requestedPriority?.toUpperCase() !== priorityFilter.toUpperCase()) {
-          return false;
-        }
-      }
-
-      // 4. IT Priority filter
-      if (itPriorityFilter !== "ALL") {
-        const itP = t.itPriority || t.requestedPriority;
-        if (itP?.toUpperCase() !== itPriorityFilter.toUpperCase()) {
-          return false;
-        }
-      }
-
-      // 5. Status filter
-      if (statusFilter !== "ALL") {
-        if (t.currentStatus?.toUpperCase() !== statusFilter.toUpperCase()) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [tickets, search, categoryFilter, priorityFilter, itPriorityFilter, statusFilter]);
-
-  // เมื่อเปลี่ยนเงื่อนไขตัวกรอง ให้กลับมาที่หน้า 1
+  // --- กลับไปหน้า 1 ทุกครั้งที่เงื่อนไข filter/sort เปลี่ยน ---
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, categoryFilter, priorityFilter, itPriorityFilter, statusFilter]);
+  }, [search, categoryFilter, priorityFilter, statusFilter, sortBy, sortOrder]);
+
+  // --- ดึงข้อมูลจาก backend จริง พร้อม search/filter/sort/pagination ---
+  useEffect(() => {
+    if (!currentRequester) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setFetchError(null);
+
+    const params: Record<string, string> = {
+      requesterId: currentRequester.id.toString(),
+      sortBy,
+      sortOrder,
+      page: currentPage.toString(),
+      pageSize: PAGE_SIZE.toString(),
+    };
+    if (search) params.search = search;
+    if (categoryFilter !== "ALL") params.categoryId = categoryFilter;
+    if (priorityFilter !== "ALL") params.requestedPriority = priorityFilter;
+    if (statusFilter !== "ALL") params.currentStatus = statusFilter;
+
+    const query = new URLSearchParams(params);
+
+    fetch(`/api/tickets?${query.toString()}`, {
+      headers: { "x-requester-id": currentRequester.id.toString() },
+    })
+      .then(async (res) => {
+        const body = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(body?.error || "Failed to load tickets.");
+        }
+        return body;
+      })
+      .then((resData) => {
+        if (cancelled) return;
+        setTickets(resData.data ?? resData.tickets ?? []);
+        setPagination(
+          resData.pagination ?? {
+            total: 0,
+            page: 1,
+            pageSize: PAGE_SIZE,
+            totalPages: 1,
+          }
+        );
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("Error fetching tickets:", err);
+        setFetchError(err.message || "Unable to load your tickets right now.");
+        setTickets([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRequester, search, categoryFilter, priorityFilter, statusFilter, sortBy, sortOrder, currentPage]);
+
+  const handleSort = (field: SortField) => {
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortOrder("desc");
+    }
+  };
+
+  const sortIndicator = (field: SortField) => {
+    if (sortBy !== field) return "⇅";
+    return sortOrder === "asc" ? "▲" : "▼";
+  };
 
   const handleClearFilters = () => {
+    setSearchInput("");
     setSearch("");
     setCategoryFilter("ALL");
     setPriorityFilter("ALL");
-    setItPriorityFilter("ALL");
     setStatusFilter("ALL");
     setCurrentPage(1);
   };
+
+  const hasActiveFilters =
+    search !== "" || categoryFilter !== "ALL" || priorityFilter !== "ALL" || statusFilter !== "ALL";
 
   const getPriorityBadge = (priority: string) => {
     switch (priority?.toUpperCase()) {
@@ -201,10 +248,9 @@ export const TicketListPage: React.FC = () => {
     }
   };
 
-  // Pagination Slice
-  const totalPages = Math.ceil(filteredTickets.length / pageSize) || 1;
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedTickets = filteredTickets.slice(startIndex, startIndex + pageSize);
+  const startIndex = (pagination.page - 1) * pagination.pageSize;
+  const showingFrom = pagination.total > 0 ? startIndex + 1 : 0;
+  const showingTo = Math.min(startIndex + pagination.pageSize, pagination.total);
 
   return (
     <div style={{ backgroundColor: "#F5F7F6", minHeight: "100vh" }} className="pb-5">
@@ -243,28 +289,28 @@ export const TicketListPage: React.FC = () => {
                   type="text"
                   className="form-control border-start-0 ps-0"
                   placeholder="Search by ticket number or summary..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                 />
               </div>
             </div>
             <div className="col-lg-8">
               <div className="row g-2">
-                <div className="col-md-3 col-6">
+                <div className="col-md-4 col-6">
                   <select
                     className="form-select form-select-sm"
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
                   >
                     <option value="ALL">All Categories</option>
-                    <option value="Account and Access">Account and Access</option>
-                    <option value="Hardware">Hardware</option>
-                    <option value="Software">Software</option>
-                    <option value="Network">Network</option>
-                    <option value="Facilities">Facilities</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                <div className="col-md-3 col-6">
+                <div className="col-md-4 col-6">
                   <select
                     className="form-select form-select-sm"
                     value={priorityFilter}
@@ -276,19 +322,7 @@ export const TicketListPage: React.FC = () => {
                     <option value="HIGH">High</option>
                   </select>
                 </div>
-                <div className="col-md-3 col-6">
-                  <select
-                    className="form-select form-select-sm"
-                    value={itPriorityFilter}
-                    onChange={(e) => setItPriorityFilter(e.target.value)}
-                  >
-                    <option value="ALL">IT Priorities</option>
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                  </select>
-                </div>
-                <div className="col-md-3 col-6">
+                <div className="col-md-4 col-6">
                   <select
                     className="form-select form-select-sm"
                     value={statusFilter}
@@ -296,9 +330,9 @@ export const TicketListPage: React.FC = () => {
                   >
                     <option value="ALL">All Statuses</option>
                     <option value="NEW">New</option>
-                    <option value="OPEN">Open</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="RESOLVED">Resolved</option>
+                    <option value="CLOSED">Closed</option>
                   </select>
                 </div>
               </div>
@@ -306,40 +340,77 @@ export const TicketListPage: React.FC = () => {
           </div>
         </div>
 
+        {fetchError && (
+          <div
+            className="alert py-2 mb-3 small"
+            style={{ backgroundColor: "#FDE8E8", color: "#9B1C1C", border: "1px solid #F8B4B4" }}
+            role="alert"
+          >
+            ⚠️ {fetchError}
+          </div>
+        )}
+
         {/* Table Card */}
         <div className="card border-0 shadow-sm rounded-3 overflow-hidden bg-white">
-          <div className="table-responsive">
+          {/* Desktop / Tablet: data table (>= 768px) */}
+          <div className="table-responsive d-none d-md-block" data-testid="ticket-table-view">
             <table className="table align-middle mb-0" style={{ fontSize: "0.85rem" }}>
               <thead style={{ backgroundColor: "#EAF6EF" }}>
                 <tr className="text-secondary">
-                  <th className="py-3 px-3 fw-semibold">Ticket No. ⇅</th>
-                  <th className="py-3 px-3 fw-semibold">Created Date ⇅</th>
+                  <th
+                    className="py-3 px-3 fw-semibold"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSort("ticketNumber")}
+                    onKeyDown={(e) => e.key === "Enter" && handleSort("ticketNumber")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    Ticket No. {sortIndicator("ticketNumber")}
+                  </th>
+                  <th
+                    className="py-3 px-3 fw-semibold"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSort("createdAt")}
+                    onKeyDown={(e) => e.key === "Enter" && handleSort("createdAt")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    Created Date {sortIndicator("createdAt")}
+                  </th>
                   <th className="py-3 px-3 fw-semibold">Summary</th>
                   <th className="py-3 px-3 fw-semibold">Category</th>
                   <th className="py-3 px-3 fw-semibold text-center">Requested Priority</th>
                   <th className="py-3 px-3 fw-semibold text-center">IT Priority</th>
                   <th className="py-3 px-3 fw-semibold text-center">Current Status</th>
-                  <th className="py-3 px-3 fw-semibold">Ticket Owner</th>
-                  <th className="py-3 px-3 fw-semibold">Last Updated ⇅</th>
+                  <th
+                    className="py-3 px-3 fw-semibold"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSort("updatedAt")}
+                    onKeyDown={(e) => e.key === "Enter" && handleSort("updatedAt")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                  >
+                    Last Updated {sortIndicator("updatedAt")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-5 text-muted">
+                    <td colSpan={8} className="text-center py-5 text-muted">
                       Loading tickets...
                     </td>
                   </tr>
-                ) : paginatedTickets.length === 0 ? (
+                ) : tickets.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-5 text-muted fst-italic">
-                      {tickets.length === 0
-                        ? "No tickets found for this requester."
-                        : "No matching tickets found."}
+                    <td colSpan={8} className="text-center py-5 text-muted fst-italic">
+                      {hasActiveFilters
+                        ? "No matching tickets found."
+                        : "No tickets found for this requester."}
                     </td>
                   </tr>
                 ) : (
-                  paginatedTickets.map((t) => (
+                  tickets.map((t) => (
                     <tr key={t.id} className="border-bottom">
                       <td className="px-3">
                         <Link
@@ -366,7 +437,6 @@ export const TicketListPage: React.FC = () => {
                         {getPriorityBadge(t.itPriority || t.requestedPriority)}
                       </td>
                       <td className="px-3 text-center">{getStatusBadge(t.currentStatus)}</td>
-                      <td className="px-3 text-muted">{t.ticketOwner || "Unassigned"}</td>
                       <td className="px-3 text-muted">
                         {new Date(t.updatedAt || t.createdAt).toLocaleDateString("en-US", {
                           month: "short",
@@ -383,13 +453,79 @@ export const TicketListPage: React.FC = () => {
             </table>
           </div>
 
+          {/* Mobile: card list, zero horizontal scrolling (< 768px) */}
+          <div className="d-md-none" data-testid="ticket-card-list">
+            {loading ? (
+              <div className="text-center py-5 text-muted">Loading tickets...</div>
+            ) : tickets.length === 0 ? (
+              <div className="text-center py-5 text-muted fst-italic px-3">
+                {hasActiveFilters
+                  ? "No matching tickets found."
+                  : "No tickets found for this requester."}
+              </div>
+            ) : (
+              <div className="d-flex flex-column">
+                {tickets.map((t) => (
+                  <div
+                    key={t.id}
+                    className="p-3 border-bottom"
+                    style={{ fontSize: "0.85rem" }}
+                    data-testid="ticket-card"
+                  >
+                    <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                      <Link
+                        to={`/tickets/${t.id}`}
+                        className="fw-bold text-decoration-none"
+                        style={{ color: "#006B3C" }}
+                      >
+                        {t.ticketNumber}
+                      </Link>
+                      {getStatusBadge(t.currentStatus)}
+                    </div>
+
+                    <div className="fw-medium text-dark mb-2">{t.summary}</div>
+
+                    <div className="text-muted mb-2">
+                      <span className="fw-semibold">Category:</span> {t.category?.name || "-"}
+                    </div>
+
+                    <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                      <span className="text-muted">Requested:</span>
+                      {getPriorityBadge(t.requestedPriority)}
+                      <span className="text-muted">IT:</span>
+                      {getPriorityBadge(t.itPriority || t.requestedPriority)}
+                    </div>
+
+                    <div className="d-flex justify-content-between text-muted" style={{ fontSize: "0.78rem" }}>
+                      <span>
+                        Created{" "}
+                        {new Date(t.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                      <span>
+                        Updated{" "}
+                        {new Date(t.updatedAt || t.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Pagination Footer */}
           <div className="d-flex justify-content-between align-items-center p-3 border-top small text-muted">
             <div>
-              Showing {filteredTickets.length > 0 ? startIndex + 1 : 0} to{" "}
-              {Math.min(startIndex + pageSize, filteredTickets.length)} of {filteredTickets.length} tickets
+              Showing {showingFrom} to {showingTo} of {pagination.total} tickets
             </div>
-            {totalPages > 1 && (
+            {pagination.totalPages > 1 && (
               <div className="d-flex align-items-center gap-1">
                 <button
                   className="btn btn-sm btn-light border px-2 py-0"
@@ -398,7 +534,7 @@ export const TicketListPage: React.FC = () => {
                 >
                   &lt; Previous
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => (
+                {Array.from({ length: pagination.totalPages }, (_, i) => (
                   <button
                     key={i + 1}
                     className={`btn btn-sm px-2 py-0 ${
@@ -412,8 +548,8 @@ export const TicketListPage: React.FC = () => {
                 ))}
                 <button
                   className="btn btn-sm btn-light border px-2 py-0"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === pagination.totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
                 >
                   Next &gt;
                 </button>

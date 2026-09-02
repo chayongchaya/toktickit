@@ -65,9 +65,9 @@ function Lab1Screen() {
 }
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const { currentRequester, isLoading } = useRequester();
+  const { currentRequester, loading } = useRequester();
 
-  if (isLoading) {
+  if (loading) {
     return <div className="p-5 text-center">Loading user context...</div>;
   }
 
