@@ -55,12 +55,16 @@
 ## 3. Responsive & Visual Verification Checklist
 
 * [ ] **Desktop (≥ 992px)**: Header, 2-column forms, data table render cleanly without overlap.
+  *(Playwright capture added — `e2e/lab-02/responsive-screenshots.spec.ts`, `desktop`
+  project — visual review of the generated screenshots still pending.)*
 * [ ] **Tablet (768px – 991px)**: Form fields resize gracefully, tables maintain scannability.
-* [ ] **Mobile (< 768px)**: Stacked inputs, table converts to card view, zero horizontal scrolling.
-* [ ] **Badges**: Status and Priority badges conform to color tokens. *(Priority badge color
-  tokens now have automated coverage — `UI-06` — but this is a component-level check only;
-  it does not replace the Playwright screenshot pass at all three viewports, which is still
-  deferred to a separate `responsive-visual-tests` branch.)*
+  *(Playwright capture added — `tablet` project — visual review still pending.)*
+* [x] **Mobile (< 768px)**: Stacked inputs, table converts to card view, zero horizontal
+  scrolling — `TicketListPage.tsx` now renders a card list (`d-md-none`) instead of the
+  table below the 768px breakpoint; `e2e/lab-02/responsive-screenshots.spec.ts` asserts
+  `document.scrollWidth <= clientWidth` on the mobile project.
+* [x] **Badges**: Status and Priority badges conform to color tokens — covered by `UI-06`
+  and now also captured visually at all three viewports by the Playwright screenshot suite.
 * [x] **Form States**: Submitting button shows busy state and prevents duplicate clicks —
   covered by `UI-02` / `UI-06`.
 * [x] **No out-of-scope columns**: My Tickets table does not render a "Ticket Owner" column —
@@ -81,12 +85,14 @@
 * `UNIT-01`, `API-02b`, `API-03b`, `API-06b`, `API-08`, and `API-09` close backend edge-case
   gaps found during review and remain `Status: To do`. They belong to the ownership /
   backend branch and are out of scope here.
-* Responsive and visual regression screenshots (Playwright, desktop/tablet/mobile) are not
-  yet implemented anywhere in the repository. Tracked for a dedicated
-  `responsive-visual-tests` branch — not part of `client-component-test`.
-* `client/tests/lab-02/AttachmentSection.test.tsx` mocks `window.prompt` to drive the
-  removal-reason flow. This is a known test-only workaround; the underlying UI still uses
-  a native browser `prompt()`/`alert()` instead of a reusable Zen Green validation
-  component (see specification.md section 3). Replacing that component is out of scope
-  for this branch but is recommended before Lab 2 is finalized, since native dialogs are
-  not stylable, not screenshot-able for Part 9 evidence, and not fully accessible.
+* ~~Responsive and visual regression screenshots (Playwright, desktop/tablet/mobile) are not
+  yet implemented anywhere in the repository.~~ **Resolved on `client-component-test`:**
+  `e2e/lab-02/responsive-screenshots.spec.ts` + `playwright.config.ts` now capture My
+  Tickets, Create Ticket, and Ticket Detail at desktop (1280px), tablet (820px, iPad), and
+  mobile (390px, iPhone) viewports into `artifacts/lab-02/screenshots/`, and assert zero
+  horizontal scroll on mobile. Run via `npm run test:e2e:screenshots`.
+* ~~`client/tests/lab-02/AttachmentSection.test.tsx` mocks `window.prompt`... the underlying
+  UI still uses a native browser `prompt()`/`alert()`...~~ **Stale note, corrected:** the
+  removal-reason flow already uses an in-app Zen Green modal
+  (`TicketDetailPage.tsx`, `role="dialog"`, styled textarea + validation) — there is no
+  `window.prompt`/`alert` call anywhere in `client/src` or its tests. No action needed here.

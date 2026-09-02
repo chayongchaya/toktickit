@@ -1,5 +1,10 @@
 {
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:screenshots": "playwright test e2e/lab-02/responsive-screenshots.spec.ts"
+  },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.4.1"
   }
 }
