@@ -26,17 +26,18 @@ interface Pagination {
 
 type SortField = "ticketNumber" | "createdAt" | "updatedAt";
 
-const PAGE_SIZE = 8;
 const SEARCH_DEBOUNCE_MS = 350;
 
 export const TicketListPage: React.FC = () => {
   const { currentRequester } = useRequester();
 
   const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [pageSize, setPageSize] = useState<number>(8);
+
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
     page: 1,
-    pageSize: PAGE_SIZE,
+    pageSize: 8,
     totalPages: 1,
   });
   const [categories, setCategories] = useState<Category[]>([]);
@@ -73,7 +74,7 @@ export const TicketListPage: React.FC = () => {
   // --- กลับไปหน้า 1 ทุกครั้งที่เงื่อนไข filter/sort เปลี่ยน ---
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, categoryFilter, priorityFilter, statusFilter, sortBy, sortOrder]);
+  }, [search, categoryFilter, priorityFilter, statusFilter, sortBy, sortOrder, pageSize]);
 
   // --- ดึงข้อมูลจาก backend จริง พร้อม search/filter/sort/pagination ---
   useEffect(() => {
@@ -88,7 +89,7 @@ export const TicketListPage: React.FC = () => {
       sortBy,
       sortOrder,
       page: currentPage.toString(),
-      pageSize: PAGE_SIZE.toString(),
+      pageSize: pageSize.toString(),
     };
     if (search) params.search = search;
     if (categoryFilter !== "ALL") params.categoryId = categoryFilter;
@@ -114,7 +115,7 @@ export const TicketListPage: React.FC = () => {
           resData.pagination ?? {
             total: 0,
             page: 1,
-            pageSize: PAGE_SIZE,
+            pageSize: pageSize,
             totalPages: 1,
           }
         );
@@ -133,7 +134,17 @@ export const TicketListPage: React.FC = () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentRequester, search, categoryFilter, priorityFilter, statusFilter, sortBy, sortOrder, currentPage]);
+  }, [
+    currentRequester,
+    search,
+    categoryFilter,
+    priorityFilter,
+    statusFilter,
+    sortBy,
+    sortOrder,
+    currentPage,
+    pageSize,
+  ]);
 
   const handleSort = (field: SortField) => {
     if (sortBy === field) {
@@ -525,36 +536,59 @@ export const TicketListPage: React.FC = () => {
             <div>
               Showing {showingFrom} to {showingTo} of {pagination.total} tickets
             </div>
-            {pagination.totalPages > 1 && (
-              <div className="d-flex align-items-center gap-1">
-                <button
-                  className="btn btn-sm btn-light border px-2 py-0"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                >
-                  &lt; Previous
-                </button>
-                {Array.from({ length: pagination.totalPages }, (_, i) => (
-                  <button
-                    key={i + 1}
-                    className={`btn btn-sm px-2 py-0 ${
-                      currentPage === i + 1 ? "text-white fw-semibold" : "btn-light border text-dark"
-                    }`}
-                    style={currentPage === i + 1 ? { backgroundColor: "#006B3C" } : {}}
-                    onClick={() => setCurrentPage(i + 1)}
-                  >
-                    {i + 1}
-                  </button>
+
+            <div className="d-flex align-items-center gap-2">
+              <label htmlFor="page-size" className="mb-0">
+                Per page:
+              </label>
+              <select
+                id="page-size"
+                className="form-select form-select-sm"
+                style={{ width: 75 }}
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+              >
+                {[5, 8, 10, 20].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
                 ))}
-                <button
-                  className="btn btn-sm btn-light border px-2 py-0"
-                  disabled={currentPage === pagination.totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
-                >
-                  Next &gt;
-                </button>
-              </div>
-            )}
+              </select>
+
+              {pagination.totalPages > 1 && (
+                <div className="d-flex align-items-center gap-1">
+                  <button
+                    className="btn btn-sm btn-light border px-2 py-0"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  >
+                    &lt; Previous
+                  </button>
+                  {Array.from({ length: pagination.totalPages }, (_, i) => (
+                    <button
+                      key={i + 1}
+                      className={`btn btn-sm px-2 py-0 ${
+                        currentPage === i + 1 ? "text-white fw-semibold" : "btn-light border text-dark"
+                      }`}
+                      style={currentPage === i + 1 ? { backgroundColor: "#006B3C" } : {}}
+                      onClick={() => setCurrentPage(i + 1)}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    className="btn btn-sm btn-light border px-2 py-0"
+                    disabled={currentPage === pagination.totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+                  >
+                    Next &gt;
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
