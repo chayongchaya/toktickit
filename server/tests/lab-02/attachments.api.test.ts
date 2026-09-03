@@ -223,4 +223,27 @@ describe("POST /api/tickets/:id/attachments (real upload path)", () => {
     expect(download.status).toBe(200);
     expect(download.headers["content-disposition"]).toContain("screenshot error.png");
   });
+
+  it("API-06b: preserves Thai characters and spaces in originalFileName", async () => {
+    const originalFileName = "รายงาน ปัญหา_lab2.pdf";
+
+    const upload = await request(app)
+      .post(`/api/tickets/${ticketId}/attachments`)
+      .set("x-requester-id", activeRequesterId.toString())
+      .attach("file", Buffer.from("fake-pdf-content"), {
+        filename: originalFileName,
+        contentType: "application/pdf",
+      });
+
+    expect(upload.status).toBe(201);
+    expect(upload.body.originalFileName).toBe(originalFileName);
+
+    const metadata = await request(app)
+      .get(`/api/attachments/${upload.body.id}`)
+      .set("x-requester-id", activeRequesterId.toString());
+
+    expect(metadata.status).toBe(200);
+    expect(metadata.body.originalFileName ?? metadata.body.fileName)
+      .toBe(originalFileName);
+  });
 });

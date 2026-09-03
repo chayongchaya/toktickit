@@ -294,4 +294,89 @@ describe("POST /api/tickets & GET /api/systems", () => {
       expect(t.itPriority).toBe("HIGH");
     }
   });
+
+  it("API-02b: should return 400 for inactive category or related system", async () => {
+    const requester = await prisma.requesterUser.findFirst({
+      where: { isActive: true },
+    });
+
+    let inactiveCategory = await prisma.category.findFirst({
+      where: { isActive: false },
+    });
+
+    if (!inactiveCategory) {
+      inactiveCategory = await prisma.category.create({
+        data: {
+          name: `Inactive category ${Date.now()}`,
+          isActive: false,
+        },
+      });
+    }
+
+    const system = await prisma.relatedSystem.findFirst({
+      where: { isActive: true },
+    });
+
+    const res = await request(app).post("/api/tickets").send({
+      requesterId: requester!.id,
+      categoryId: inactiveCategory.id,
+      relatedSystemId: system!.id,
+      requestedPriority: "MEDIUM",
+      summary: `Inactive category test ${Date.now()}`,
+      description: "Inactive category must be rejected.",
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("API-09: should create unique ticket numbers concurrently", async () => {
+    const requester = await prisma.requesterUser.findFirst({
+      where: { isActive: true },
+    });
+    const category = await prisma.category.findFirst({
+      where: { isActive: true },
+    });
+    const system = await prisma.relatedSystem.findFirst({
+      where: { isActive: true },
+    });
+
+    const results = await Promise.all(
+      Array.from({ length: 10 }, (_, index) =>
+        request(app)
+          .post("/api/tickets")
+          .send({
+            requesterId: requester!.id,
+            categoryId: category!.id,
+            relatedSystemId: system!.id,
+            requestedPriority: "MEDIUM",
+            summary: `Concurrent ticket ${Date.now()}-${index}`,
+            description: `Concurrency test ticket ${index}`,
+          })
+      )
+    );
+    const failures = results
+      .map((res, index) => ({
+        index,
+        status: res.status,
+        body: res.body,
+      }))
+      .filter((result) => result.status !== 201);
+
+    expect(failures, JSON.stringify(failures, null, 2)).toEqual([]);
+    
+    const ticketNumbers = results.map(
+      (res) =>
+        res.body.ticketNumber ??
+        res.body.ticket?.ticketNumber ??
+        res.body.data?.ticketNumber
+    );
+
+    expect(ticketNumbers.every((number) => typeof number === "string")).toBe(true);
+
+    for (const ticketNumber of ticketNumbers) {
+      expect(ticketNumber).toMatch(/^TKT-\d{4}-\d{6}$/);
+    }
+
+    expect(new Set(ticketNumbers).size).toBe(ticketNumbers.length);
+  });
 });

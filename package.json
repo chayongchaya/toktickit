@@ -1,5 +1,7 @@
 {
   "scripts": {
+    "test:server": "npm --prefix server test",
+    "test:client": "npm --prefix client test",
     "test:e2e": "playwright test",
     "test:e2e:screenshots": "playwright test e2e/lab-02/responsive-screenshots.spec.ts"
   },
