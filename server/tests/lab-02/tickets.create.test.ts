@@ -21,8 +21,8 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
   it("POST /api/tickets should create ticket with status NEW", async () => {
     const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    const category = await prisma.category.findFirst();
-    const system = await prisma.relatedSystem.findFirst();
+    const category = await prisma.category.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
 
     const payload = {
       requesterId: requester!.id,
@@ -43,8 +43,8 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
   it("GET /api/tickets/:id should return ticket details by ID for the owning requester", async () => {
     const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    const category = await prisma.category.findFirst();
-    const system = await prisma.relatedSystem.findFirst();
+    const category = await prisma.category.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
 
     const created = await prisma.ticket.create({
       data: {
@@ -78,8 +78,8 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
   it("GET /api/tickets/:id should return 403 when requester does not own the ticket", async () => {
     const requesters = await prisma.requesterUser.findMany({ where: { isActive: true }, take: 2 });
-    const category = await prisma.category.findFirst();
-    const system = await prisma.relatedSystem.findFirst();
+    const category = await prisma.category.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
 
     const owner = requesters[0];
     const other = requesters[1];
@@ -113,8 +113,8 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
   it("POST /api/tickets should return 400 for an invalid requestedPriority value", async () => {
     const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    const category = await prisma.category.findFirst();
-    const system = await prisma.relatedSystem.findFirst();
+    const category = await prisma.category.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
 
     const res = await request(app).post("/api/tickets").send({
       requesterId: requester!.id,
@@ -191,8 +191,8 @@ describe("POST /api/tickets & GET /api/systems", () => {
         },
       });
     }
-    const category = await prisma.category.findFirst();
-    const system = await prisma.relatedSystem.findFirst();
+    const category = await prisma.category.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
 
     const res = await request(app).post("/api/tickets").send({
       requesterId: inactive.id,
@@ -208,8 +208,8 @@ describe("POST /api/tickets & GET /api/systems", () => {
   });
 
   it("POST /api/tickets should return 404 for a requesterId that does not exist at all", async () => {
-    const category = await prisma.category.findFirst();
-    const system = await prisma.relatedSystem.findFirst();
+    const category = await prisma.category.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
 
     const res = await request(app).post("/api/tickets").send({
       requesterId: 999999999,
@@ -226,8 +226,8 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
   it("POST /api/tickets should reject an immediate resubmission of the same ticket with 409", async () => {
     const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    const category = await prisma.category.findFirst();
-    const system = await prisma.relatedSystem.findFirst();
+    const category = await prisma.category.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
 
     const payload = {
       requesterId: requester!.id,
@@ -248,8 +248,8 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
   it("POST /api/tickets should default itPriority to MEDIUM independently of requestedPriority", async () => {
     const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    const category = await prisma.category.findFirst();
-    const system = await prisma.relatedSystem.findFirst();
+    const category = await prisma.category.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
 
     const res = await request(app).post("/api/tickets").send({
       requesterId: requester!.id,
@@ -267,8 +267,8 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
   it("GET /api/tickets should filter by itPriority", async () => {
     const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    const category = await prisma.category.findFirst();
-    const system = await prisma.relatedSystem.findFirst();
+    const category = await prisma.category.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
 
     await prisma.ticket.create({
       data: {
