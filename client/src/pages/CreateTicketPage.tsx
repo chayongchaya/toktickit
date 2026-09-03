@@ -262,6 +262,34 @@ export const CreateTicketPage: React.FC = () => {
         </div>
 
         <div className="card border-0 shadow-sm rounded-3 p-4 bg-white">
+          <div className="row g-3 mb-4 p-3 rounded-3 bg-light border">
+            <div className="col-md-6">
+              <label className="form-label small fw-semibold text-muted mb-1">
+                Ticket Number
+              </label>
+              <input
+                type="text"
+                className="form-control form-control-sm bg-white"
+                value="Assigned upon creation"
+                disabled
+                readOnly
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label small fw-semibold text-muted mb-1">
+                Ticket Date
+              </label>
+              <input
+                type="text"
+                className="form-control form-control-sm bg-white"
+                value="Set upon creation"
+                disabled
+                readOnly
+              />
+            </div>
+          </div>
+
           <div className="border-bottom pb-3 mb-4">
             <h1 className="h5 fw-bold text-dark mb-1">Create Support Ticket</h1>
             <p className="text-muted small mb-0">Describe your technical issue and submit to the IT support desk.</p>
