@@ -101,6 +101,24 @@ cd ..
 
 ---
 
+## 🚀 Environment Setup
+
+Configure the PostgreSQL connection string in `server/.env`:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/toktickit"
+```
+
+Start PostgreSQL using your local PostgreSQL service, then run the Prisma setup:
+
+```powershell
+cd server
+npx prisma generate
+npx prisma migrate dev
+```
+
+---
+
 ## 💻 Running the Application
 
 Open two separate terminals to run both services concurrently:
