@@ -10,11 +10,18 @@ import {
 
 interface AttachmentItem {
   id: number;
-  fileName: string;
+  fileName: string; // internal storage filename — never displayed to the user
+  originalFileName?: string; // requester's original upload name — display this instead
   fileSize: number;
   isRemoved?: boolean;
   removalReason?: string | null;
 }
+
+// Always prefer the requester's original filename. Falls back to the
+// internal storage name only for legacy rows where originalFileName
+// somehow ended up empty, so the UI never renders a blank label.
+const displayFileName = (att: AttachmentItem): string =>
+  att.originalFileName || att.fileName;
 
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -588,7 +595,7 @@ export const TicketDetailPage: React.FC = () => {
                       <div className="d-flex align-items-center gap-2">
                         <span>📄</span>
                         <span className="fw-medium text-dark">
-                          {att.fileName}
+                          {displayFileName(att)}
                         </span>
                       </div>
 
@@ -641,7 +648,7 @@ export const TicketDetailPage: React.FC = () => {
                       <div className="d-flex align-items-center gap-2">
                         <span>📄</span>
                         <span className="text-decoration-line-through">
-                          {att.fileName}
+                          {displayFileName(att)}
                         </span>
                       </div>
 
@@ -689,7 +696,7 @@ export const TicketDetailPage: React.FC = () => {
 
               <p className="text-muted small mb-3">
                 Removing{" "}
-                <strong>{removeTarget.fileName}</strong> is a
+                <strong>{displayFileName(removeTarget)}</strong> is a
                 soft removal. Its metadata will remain visible,
                 but it can no longer be downloaded. Please
                 provide a reason.

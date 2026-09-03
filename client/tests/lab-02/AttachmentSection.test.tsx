@@ -5,7 +5,7 @@ import { TicketDetailPage } from "../../src/pages/TicketDetailPage";
 import { RequesterContext } from "../../src/context/RequesterContext";
 
 // Covers: AC-04 (attachment restrictions), AC-05 (soft removal + reason required,
-// blocked download), section 4.5 attachment rules.
+// blocked download), AC-12 (original filename display), section 4.5 attachment rules.
 
 const mockRequester = {
   id: 1,
@@ -73,6 +73,33 @@ describe("Attachment Section (TicketDetailPage)", () => {
       expect(screen.getByText("screenshot_error.png")).toBeInTheDocument();
       expect(screen.getByText("outdated_log.pdf")).toBeInTheDocument();
       expect(screen.getByText(/Uploaded wrong file/i)).toBeInTheDocument();
+    });
+  });
+
+  // AC-12: the UI must display the requester's original upload name,
+  // never the internally generated storage filename.
+  it("displays the original filename, not the internal storage filename", async () => {
+    const ticketWithOriginalName = {
+      ...baseTicket,
+      attachments: [
+        {
+          id: 101,
+          fileName: "1756812345-839201.pdf",
+          originalFileName: "battery report.pdf",
+          fileSize: 102400,
+          isRemoved: false,
+        },
+      ],
+    };
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve(ticketWithOriginalName) });
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText("battery report.pdf")).toBeInTheDocument();
+      expect(screen.queryByText("1756812345-839201.pdf")).not.toBeInTheDocument();
     });
   });
 

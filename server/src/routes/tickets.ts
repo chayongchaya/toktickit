@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { Prisma } from "@prisma/client";
 import { getPrisma } from "../prisma.js";
 
 export const ticketsRouter = Router();
@@ -47,6 +48,9 @@ const upload = multer({
   },
 });
 
+// Valid Priority enum values (kept in sync with schema.prisma "Priority" enum)
+const VALID_PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
+
 // Helper: Extract requesterId from Header, Query, or Body
 const getRequesterId = (req: Request): number | null => {
   const headerVal = req.headers["x-requester-id"];
@@ -60,12 +64,69 @@ const getRequesterId = (req: Request): number | null => {
   return isNaN(id) ? null : id;
 };
 
-// Helper: Generate unique ticket number (TKT-YYYY-XXXXXX)
+// Helper: Load a requester and classify it as missing / inactive / active.
+// Used to enforce AC-11: ticket creation and attachment upload must be
+// rejected for a requesterId that does not exist or is not active, even
+// when the request bypasses the UI selector.
+type RequesterCheck =
+  | { status: "missing" }
+  | { status: "inactive" }
+  | { status: "ok"; id: number };
+
+const checkRequester = async (requesterId: number): Promise<RequesterCheck> => {
+  const requester = await prisma.requesterUser.findUnique({
+    where: { id: requesterId },
+    select: { id: true, isActive: true },
+  });
+  if (!requester) return { status: "missing" };
+  if (!requester.isActive) return { status: "inactive" };
+  return { status: "ok", id: requester.id };
+};
+
+// Helper: Generate a unique ticket number in the required TKT-YYYY-XXXXXX
+// format (see specification.md BR-01 and api-spec.md examples). The
+// number is based on the current row count; true uniqueness is enforced
+// by the DB unique constraint on ticketNumber plus the retry loop in
+// createTicketWithUniqueNumber below, so concurrent requests that would
+// otherwise compute the same count simply retry with a freshly recomputed
+// (higher) count once the earlier request has committed.
 const generateTicketNumber = async (): Promise<string> => {
   const currentYear = new Date().getFullYear();
   const count = await prisma.ticket.count();
   const nextNumber = (count + 1).toString().padStart(6, "0");
   return `TKT-${currentYear}-${nextNumber}`;
+};
+
+// Helper: Create a ticket, retrying with a fresh ticket number if a
+// unique-constraint collision occurs on ticketNumber (BR-01: the official
+// Ticket Number must be unique, even under concurrent submissions).
+const MAX_TICKET_NUMBER_RETRIES = 5;
+
+const createTicketWithUniqueNumber = async (
+  data: Omit<Prisma.TicketUncheckedCreateInput, "ticketNumber">
+) => {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_TICKET_NUMBER_RETRIES; attempt++) {
+    const ticketNumber = await generateTicketNumber();
+    try {
+      return await prisma.ticket.create({
+        data: { ...data, ticketNumber },
+      });
+    } catch (error) {
+      const isUniqueConflict =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        Array.isArray((error.meta as { target?: string[] })?.target) &&
+        (error.meta as { target?: string[] }).target?.includes("ticketNumber");
+
+      if (isUniqueConflict) {
+        lastError = error;
+        continue; // retry with a newly generated ticket number
+      }
+      throw error;
+    }
+  }
+  throw lastError ?? new Error("Failed to generate a unique ticket number");
 };
 
 // ==========================================
@@ -84,6 +145,7 @@ ticketsRouter.get("/", async (req: Request, res: Response) => {
       search,
       categoryId,
       requestedPriority,
+      itPriority,
       currentStatus,
       sortBy = "createdAt",
       sortOrder = "desc",
@@ -110,8 +172,20 @@ ticketsRouter.get("/", async (req: Request, res: Response) => {
       whereClause.categoryId = Number(categoryId);
     }
 
-    if (requestedPriority && typeof requestedPriority === "string") {
+    if (
+      requestedPriority &&
+      typeof requestedPriority === "string" &&
+      VALID_PRIORITIES.includes(requestedPriority)
+    ) {
       whereClause.requestedPriority = requestedPriority;
+    }
+
+    if (
+      itPriority &&
+      typeof itPriority === "string" &&
+      VALID_PRIORITIES.includes(itPriority)
+    ) {
+      whereClause.itPriority = itPriority;
     }
 
     if (currentStatus && typeof currentStatus === "string") {
@@ -186,26 +260,69 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
     });
   }
 
+  // Guard against non-numeric categoryId/relatedSystemId (e.g. "abc") before
+  // they ever reach Prisma. Without this, Number("abc") becomes NaN and the
+  // findUnique/create calls below throw, which was falling through to a
+  // generic 500 instead of a clean 400 (safe-errors requirement, spec 6.3).
+  const categoryIdNum = Number(categoryId);
+  const relatedSystemIdNum = Number(relatedSystemId);
+  if (Number.isNaN(categoryIdNum) || Number.isNaN(relatedSystemIdNum)) {
+    return res.status(400).json({
+      error: "Category and related system IDs must be valid numbers",
+    });
+  }
+
+  if (
+    typeof requestedPriority !== "string" ||
+    !VALID_PRIORITIES.includes(requestedPriority)
+  ) {
+    return res.status(400).json({
+      error: `Requested priority must be one of: ${VALID_PRIORITIES.join(", ")}`,
+    });
+  }
+
   const requesterId = getRequesterId(req);
   if (!requesterId) {
     return res.status(400).json({ error: "Requester identity is required" });
   }
 
   try {
-    const ticketNumber = await generateTicketNumber();
+    // Enforce AC-11: reject ticket creation for a missing/inactive requester,
+    // even if the request bypasses the UI selector.
+    const requesterCheck = await checkRequester(requesterId);
+    if (requesterCheck.status === "missing") {
+      return res.status(404).json({ error: "Requester not found" });
+    }
+    if (requesterCheck.status === "inactive") {
+      return res.status(403).json({
+        error: "This Development Requester is inactive and cannot create tickets",
+      });
+    }
 
-    const ticket = await prisma.ticket.create({
-      data: {
-        ticketNumber,
-        requesterId,
-        categoryId: Number(categoryId),
-        relatedSystemId: Number(relatedSystemId),
-        requestedPriority,
-        itPriority: requestedPriority,
-        currentStatus: "NEW",
-        summary: summary.trim(),
-        description: description.trim(),
-      },
+    // Validate that Category and Related System exist and are active,
+    // rather than letting an invalid foreign key fall through to a
+    // generic 500 error.
+    const [category, relatedSystem] = await Promise.all([
+      prisma.category.findUnique({ where: { id: categoryIdNum } }),
+      prisma.relatedSystem.findUnique({ where: { id: relatedSystemIdNum } }),
+    ]);
+
+    if (!category || !category.isActive) {
+      return res.status(400).json({ error: "Category is invalid or inactive" });
+    }
+    if (!relatedSystem || !relatedSystem.isActive) {
+      return res.status(400).json({ error: "Related System is invalid or inactive" });
+    }
+
+    const ticket = await createTicketWithUniqueNumber({
+      requesterId,
+      categoryId: categoryIdNum,
+      relatedSystemId: relatedSystemIdNum,
+      requestedPriority,
+      itPriority: requestedPriority,
+      currentStatus: "NEW",
+      summary: summary.trim(),
+      description: description.trim(),
     });
 
     return res.status(201).json(ticket);
@@ -237,6 +354,7 @@ ticketsRouter.get("/:id", async (req: Request, res: Response) => {
           select: {
             id: true,
             fileName: true,
+            originalFileName: true,
             fileSize: true,
             mimeType: true,
             isRemoved: true,
@@ -256,7 +374,19 @@ ticketsRouter.get("/:id", async (req: Request, res: Response) => {
       return res.status(403).json({ error: "Forbidden: You do not own this ticket" });
     }
 
-    return res.status(200).json(ticket);
+    // Defensive fallback: never expose a blank filename to the UI, even
+    // for a legacy row where originalFileName ended up empty for any
+    // reason. The migration backfills existing rows, but this keeps the
+    // API response safe regardless.
+    const ticketWithSafeAttachments = {
+      ...ticket,
+      attachments: ticket.attachments.map((att) => ({
+        ...att,
+        originalFileName: att.originalFileName || att.fileName,
+      })),
+    };
+
+    return res.status(200).json(ticketWithSafeAttachments);
   } catch (error) {
     return res.status(500).json({ error: "Failed to retrieve ticket details" });
   }
@@ -299,6 +429,18 @@ ticketsRouter.post(
     }
 
     try {
+      // Enforce AC-11: reject attachment upload for a missing/inactive
+      // requester, even if the request bypasses the UI selector.
+      const requesterCheck = await checkRequester(requesterId);
+      if (requesterCheck.status === "missing") {
+        return res.status(404).json({ error: "Requester not found" });
+      }
+      if (requesterCheck.status === "inactive") {
+        return res.status(403).json({
+          error: "This Development Requester is inactive and cannot upload attachments",
+        });
+      }
+
       const ticket = await prisma.ticket.findUnique({
         where: { id: ticketId },
         include: {
@@ -327,7 +469,8 @@ ticketsRouter.post(
       const attachment = await prisma.attachment.create({
         data: {
           ticketId,
-          fileName: req.file.filename,
+          fileName: req.file.filename, // generated storage filename (on disk)
+          originalFileName: req.file.originalname, // requester's original filename (shown in UI)
           storagePath: req.file.path,
           fileSize: req.file.size,
           mimeType: req.file.mimetype,
@@ -445,9 +588,12 @@ attachmentsRouter.get("/:id/download", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "File not found on server" });
     }
 
+    // Present the requester's original filename to the browser/download
+    // dialog, not the internally generated storage filename.
+    const downloadName = attachment.originalFileName || attachment.fileName;
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${attachment.fileName}"`
+      `attachment; filename="${downloadName}"`
     );
     res.setHeader("Content-Type", attachment.mimeType);
     return res.sendFile(filePath);

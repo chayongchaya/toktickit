@@ -1,6 +1,5 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
-import path from "path";
 import { getPrisma } from "./prisma.js";
 import requesterRoutes from "./routes/requesters.js";
 import systemRoutes from "./routes/systems.js";
@@ -11,8 +10,17 @@ export const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static uploaded files
-app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+// NOTE: uploaded attachment files are intentionally NOT served as a public
+// static directory here. Section 4.5 of the Lab 2 handout requires that
+// (a) removed attachments must not be downloadable/previewable and
+// (b) one Requester must never be able to access another Requester's
+// attachment. Both of those checks live in
+// GET /api/attachments/:id/download (ownership + isRemoved check), so all
+// attachment access must go through that endpoint. Mounting
+// express.static("/uploads", ...) would let anyone who knows/guesses a
+// stored filename bypass both checks entirely, so it must not be added
+// back without also re-implementing ownership + removal checks in front
+// of it.
 
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({
@@ -25,6 +33,7 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     const categories = await prisma.category.findMany({
+      where: { isActive: true },
       select: {
         id: true,
         name: true,
@@ -40,9 +49,13 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
 });
 
 // Routes สำหรับ Lab 2
+// systemRoutes already defines its own "/related-systems" and "/systems"
+// sub-paths, so mounting it once at "/api" is enough to expose both
+// GET /api/related-systems and GET /api/systems. Mounting it again at
+// "/api/related-systems" was dead/broken code (it would resolve to
+// "/api/related-systems/related-systems") and has been removed.
 app.use("/api", requesterRoutes);
 app.use("/api", systemRoutes);
-app.use("/api/related-systems", systemRoutes); // รองรับทั้ง /api/related-systems
 app.use("/api/tickets", ticketsRouter);
 app.use("/api/attachments", attachmentsRouter);
 

@@ -110,4 +110,147 @@ describe("POST /api/tickets & GET /api/systems", () => {
     expect(res.status).toBe(404);
     expect(res.body).toHaveProperty("error");
   });
+
+  it("POST /api/tickets should return 400 for an invalid requestedPriority value", async () => {
+    const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
+
+    const res = await request(app).post("/api/tickets").send({
+      requesterId: requester!.id,
+      categoryId: category!.id,
+      relatedSystemId: system!.id,
+      requestedPriority: "URGENT", // not a valid Priority enum value
+      summary: "Invalid priority test",
+      description: "Sending an unsupported priority value to the API.",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("POST /api/tickets should return 400 (not 500) for a non-numeric categoryId", async () => {
+    const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst();
+
+    const res = await request(app).post("/api/tickets").send({
+      requesterId: requester!.id,
+      categoryId: "abc",
+      relatedSystemId: system!.id,
+      requestedPriority: "MEDIUM",
+      summary: "Non-numeric category ID test",
+      description: "Sending a non-numeric categoryId must not crash into a 500.",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("POST /api/tickets should return 400 for a non-existent categoryId", async () => {
+    const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    const system = await prisma.relatedSystem.findFirst();
+
+    const res = await request(app).post("/api/tickets").send({
+      requesterId: requester!.id,
+      categoryId: 999999,
+      relatedSystemId: system!.id,
+      requestedPriority: "MEDIUM",
+      summary: "Invalid category test",
+      description: "Sending a categoryId that does not exist.",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("POST /api/tickets should return 400 for a non-existent relatedSystemId", async () => {
+    const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    const category = await prisma.category.findFirst();
+
+    const res = await request(app).post("/api/tickets").send({
+      requesterId: requester!.id,
+      categoryId: category!.id,
+      relatedSystemId: 999999,
+      requestedPriority: "MEDIUM",
+      summary: "Invalid related system test",
+      description: "Sending a relatedSystemId that does not exist.",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("POST /api/tickets should return 403 for an inactive Development Requester (AC-11)", async () => {
+    let inactive = await prisma.requesterUser.findFirst({ where: { isActive: false } });
+    if (!inactive) {
+      inactive = await prisma.requesterUser.create({
+        data: {
+          name: "Create Test Inactive User",
+          email: `inactive-create-${Date.now()}@kmutt.ac.th`,
+          isActive: false,
+        },
+      });
+    }
+    const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
+
+    const res = await request(app).post("/api/tickets").send({
+      requesterId: inactive.id,
+      categoryId: category!.id,
+      relatedSystemId: system!.id,
+      requestedPriority: "MEDIUM",
+      summary: "Inactive requester test",
+      description: "An inactive requester must not be able to create a ticket.",
+    });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("POST /api/tickets should return 404 for a requesterId that does not exist at all", async () => {
+    const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
+
+    const res = await request(app).post("/api/tickets").send({
+      requesterId: 999999999,
+      categoryId: category!.id,
+      relatedSystemId: system!.id,
+      requestedPriority: "MEDIUM",
+      summary: "Non-existent requester test",
+      description: "A requesterId that has no matching row must be rejected.",
+    });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("GET /api/tickets should filter by itPriority", async () => {
+    const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
+
+    await prisma.ticket.create({
+      data: {
+        ticketNumber: `TKT-${Date.now()}-ITP`,
+        requesterId: requester!.id,
+        categoryId: category!.id,
+        relatedSystemId: system!.id,
+        requestedPriority: "LOW",
+        itPriority: "HIGH",
+        currentStatus: "NEW",
+        summary: "IT Priority filter test",
+        description: "Ticket created to verify itPriority query filtering.",
+      },
+    });
+
+    const res = await request(app)
+      .get(`/api/tickets?itPriority=HIGH&requesterId=${requester!.id}`);
+
+    expect(res.status).toBe(200);
+    const tickets = res.body.data ?? res.body.tickets;
+    expect(Array.isArray(tickets)).toBe(true);
+    for (const t of tickets) {
+      expect(t.itPriority).toBe("HIGH");
+    }
+  });
 });
