@@ -224,6 +224,47 @@ describe("POST /api/tickets & GET /api/systems", () => {
     expect(res.body).toHaveProperty("error");
   });
 
+  it("POST /api/tickets should reject an immediate resubmission of the same ticket with 409", async () => {
+    const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
+
+    const payload = {
+      requesterId: requester!.id,
+      categoryId: category!.id,
+      relatedSystemId: system!.id,
+      requestedPriority: "MEDIUM",
+      summary: `Duplicate submission test ${Date.now()}`,
+      description: "Submitting this exact same ticket twice in a row should be blocked.",
+    };
+
+    const first = await request(app).post("/api/tickets").send(payload);
+    expect(first.status).toBe(201);
+
+    const second = await request(app).post("/api/tickets").send(payload);
+    expect(second.status).toBe(409);
+    expect(second.body).toHaveProperty("error");
+  });
+
+  it("POST /api/tickets should default itPriority to MEDIUM independently of requestedPriority", async () => {
+    const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
+
+    const res = await request(app).post("/api/tickets").send({
+      requesterId: requester!.id,
+      categoryId: category!.id,
+      relatedSystemId: system!.id,
+      requestedPriority: "HIGH",
+      summary: `itPriority default test ${Date.now()}`,
+      description: "Requested priority is HIGH; IT priority must still default to MEDIUM.",
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.requestedPriority).toBe("HIGH");
+    expect(res.body.itPriority).toBe("MEDIUM");
+  });
+
   it("GET /api/tickets should filter by itPriority", async () => {
     const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
     const category = await prisma.category.findFirst();

@@ -90,7 +90,7 @@ const checkRequester = async (requesterId: number): Promise<RequesterCheck> => {
 // createTicketWithUniqueNumber below, so concurrent requests that would
 // otherwise compute the same count simply retry with a freshly recomputed
 // (higher) count once the earlier request has committed.
-const generateTicketNumber = async (): Promise<string> => {
+export const generateTicketNumber = async (): Promise<string> => {
   const currentYear = new Date().getFullYear();
   const count = await prisma.ticket.count();
   const nextNumber = (count + 1).toString().padStart(6, "0");
@@ -127,6 +127,40 @@ const createTicketWithUniqueNumber = async (
     }
   }
   throw lastError ?? new Error("Failed to generate a unique ticket number");
+};
+
+// Helper: Duplicate-submission guard (spec 4.3 "validation and
+// duplicate-submission prevention"). The Create Ticket UI disables the
+// Submit button while a request is in flight, but that alone does not
+// protect the server against a resubmitted/retried request (e.g. a
+// double-click that fires before the button disables, or a client-side
+// network retry). This keeps a short-lived in-memory record of recent
+// (requesterId, summary, description) submissions and rejects an
+// identical resubmission within the window with 409 Conflict instead of
+// silently creating a second ticket.
+const DUPLICATE_SUBMISSION_WINDOW_MS = 10_000;
+const recentSubmissions = new Map<string, number>();
+
+const duplicateSubmissionKey = (
+  requesterId: number,
+  summary: string,
+  description: string
+) => `${requesterId}::${summary.trim()}::${description.trim()}`;
+
+const isDuplicateSubmission = (key: string): boolean => {
+  const now = Date.now();
+  // Opportunistically clear stale entries so the map doesn't grow forever.
+  for (const [existingKey, submittedAt] of recentSubmissions) {
+    if (now - submittedAt > DUPLICATE_SUBMISSION_WINDOW_MS) {
+      recentSubmissions.delete(existingKey);
+    }
+  }
+  const lastSubmittedAt = recentSubmissions.get(key);
+  if (lastSubmittedAt && now - lastSubmittedAt < DUPLICATE_SUBMISSION_WINDOW_MS) {
+    return true;
+  }
+  recentSubmissions.set(key, now);
+  return false;
 };
 
 // ==========================================
@@ -286,6 +320,13 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Requester identity is required" });
   }
 
+  const submissionKey = duplicateSubmissionKey(requesterId, summary, description);
+  if (isDuplicateSubmission(submissionKey)) {
+    return res.status(409).json({
+      error: "This ticket was already submitted. Please wait before resubmitting.",
+    });
+  }
+
   try {
     // Enforce AC-11: reject ticket creation for a missing/inactive requester,
     // even if the request bypasses the UI selector.
@@ -319,7 +360,11 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
       categoryId: categoryIdNum,
       relatedSystemId: relatedSystemIdNum,
       requestedPriority,
-      itPriority: requestedPriority,
+      // IT Priority is a separate, IT-Staff-assigned value (Figure 1 shows
+      // it can differ from Requested Priority) and is out of scope for
+      // Requester-facing Lab 2. It must default independently rather than
+      // mirroring whatever the Requester picked.
+      itPriority: "MEDIUM",
       currentStatus: "NEW",
       summary: summary.trim(),
       description: description.trim(),
