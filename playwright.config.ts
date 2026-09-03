@@ -7,14 +7,16 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:5173";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  // NOTE: server/src/routes/tickets.ts generates ticket numbers via
-  // count()-then-insert, which races when multiple ticket-creation requests
-  // land at once (two requests can read the same count and collide on the
-  // unique ticketNumber). Running workers: 1 here avoids triggering that
-  // pre-existing backend bug from this suite; it's out of scope to fix on
-  // this branch. Remove this once the backend generates ticket numbers
-  // atomically (e.g. a DB sequence or a transaction with a row lock).
-  workers: 1,
+  // NOTE (previously): server/src/routes/tickets.ts used to generate
+  // ticket numbers via count()-then-insert with no collision handling,
+  // which raced when multiple ticket-creation requests landed at once.
+  // That has since been fixed: generateTicketNumber() is now wrapped in
+  // createTicketWithUniqueNumber(), which retries with a freshly
+  // generated number whenever the DB's unique constraint on
+  // `ticketNumber` rejects a collision (Prisma error P2002). Parallel
+  // workers are safe again as a result, so the workers: 1 override that
+  // used to live here has been removed. If E2E runs become flaky again,
+  // re-check createTicketWithUniqueNumber before re-adding a worker cap.
   retries: process.env.CI ? 1 : 0,
   reporter: [["html", { outputFolder: "playwright-report", open: "never" }]],
   use: {
