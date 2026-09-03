@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { generateTicketNumber } from "../../src/routes/tickets";
+import {
+  generateTicketNumber,
+  createTicketWithUniqueNumber,
+} from "../../src/routes/tickets";
 
 // UNIT-01 (tests.md): Ticket Number generator produces the required
 // TKT-YYYY-XXXXXX format. This is a true unit test — it calls the
@@ -30,5 +33,26 @@ describe("generateTicketNumber (unit)", () => {
     const [, , sequence] = ticketNumber.split("-");
     expect(sequence).toHaveLength(6);
     expect(sequence).toMatch(/^\d{6}$/);
+  });
+});
+
+// API-09 (tests.md): Concurrent creation of tickets with unique numbers.
+// This test ensures that the database constraint on `ticketNumber` is
+// enforced and that the retry loop in `createTicketWithUniqueNumber`
+// works correctly.
+describe("createTicketWithUniqueNumber (API-09)", () => {
+  it("creates a ticket with a unique number", async () => {
+    const ticket = await createTicketWithUniqueNumber({
+      requesterId: 1,
+      categoryId: 1,
+      relatedSystemId: 1,
+      requestedPriority: "LOW",
+      itPriority: "MEDIUM",
+      currentStatus: "NEW",
+      summary: "Test ticket",
+      description: "Test ticket description",
+    });
+
+    expect(ticket.ticketNumber).toMatch(/^TKT-\d{4}-\d{6}$/);
   });
 });

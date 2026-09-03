@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { Prisma } from "@prisma/client";
 import { getPrisma } from "../prisma.js";
+import { randomInt } from "crypto";
 
 export const ticketsRouter = Router();
 export const attachmentsRouter = Router();
@@ -48,8 +49,13 @@ const upload = multer({
   },
 });
 
-// Valid Priority enum values (kept in sync with schema.prisma "Priority" enum)
-const VALID_PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
+// Valid Priority enum values
+const VALID_PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
+type Priority = (typeof VALID_PRIORITIES)[number];
+
+const isValidPriority = (value: unknown): value is Priority =>
+  typeof value === "string" &&
+  (VALID_PRIORITIES as readonly string[]).includes(value);
 
 // Helper: Extract requesterId from Header, Query, or Body
 const getRequesterId = (req: Request): number | null => {
@@ -92,20 +98,21 @@ const checkRequester = async (requesterId: number): Promise<RequesterCheck> => {
 // (higher) count once the earlier request has committed.
 export const generateTicketNumber = async (): Promise<string> => {
   const currentYear = new Date().getFullYear();
-  const count = await prisma.ticket.count();
-  const nextNumber = (count + 1).toString().padStart(6, "0");
-  return `TKT-${currentYear}-${nextNumber}`;
+  const sequence = randomInt(0, 1_000_000).toString().padStart(6, "0");
+
+  return `TKT-${currentYear}-${sequence}`;
 };
 
 // Helper: Create a ticket, retrying with a fresh ticket number if a
 // unique-constraint collision occurs on ticketNumber (BR-01: the official
 // Ticket Number must be unique, even under concurrent submissions).
-const MAX_TICKET_NUMBER_RETRIES = 5;
+const MAX_TICKET_NUMBER_RETRIES = 20;
 
-const createTicketWithUniqueNumber = async (
+export const createTicketWithUniqueNumber = async (
   data: Omit<Prisma.TicketUncheckedCreateInput, "ticketNumber">
 ) => {
   let lastError: unknown;
+
   for (let attempt = 0; attempt < MAX_TICKET_NUMBER_RETRIES; attempt++) {
     const ticketNumber = await generateTicketNumber();
     try {
@@ -209,16 +216,12 @@ ticketsRouter.get("/", async (req: Request, res: Response) => {
     if (
       requestedPriority &&
       typeof requestedPriority === "string" &&
-      VALID_PRIORITIES.includes(requestedPriority)
+      isValidPriority(requestedPriority)
     ) {
       whereClause.requestedPriority = requestedPriority;
     }
 
-    if (
-      itPriority &&
-      typeof itPriority === "string" &&
-      VALID_PRIORITIES.includes(itPriority)
-    ) {
+    if (isValidPriority(itPriority)) {
       whereClause.itPriority = itPriority;
     }
 
@@ -307,8 +310,7 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
   }
 
   if (
-    typeof requestedPriority !== "string" ||
-    !VALID_PRIORITIES.includes(requestedPriority)
+    !isValidPriority(requestedPriority)
   ) {
     return res.status(400).json({
       error: `Requested priority must be one of: ${VALID_PRIORITIES.join(", ")}`,
@@ -372,7 +374,11 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
 
     return res.status(201).json(ticket);
   } catch (error) {
-    return res.status(500).json({ error: "Failed to create ticket" });
+    console.error("POST /api/tickets error:", error);
+
+    return res.status(500).json({
+      error: "Failed to create ticket",
+    });
   }
 });
 
@@ -515,7 +521,7 @@ ticketsRouter.post(
         data: {
           ticketId,
           fileName: req.file.filename, // generated storage filename (on disk)
-          originalFileName: req.file.originalname, // requester's original filename (shown in UI)
+          originalFileName: decodeOriginalFileName(req.file.originalname), // requester's original filename (shown in UI)
           storagePath: req.file.path,
           fileSize: req.file.size,
           mimeType: req.file.mimetype,
@@ -592,6 +598,56 @@ attachmentsRouter.delete("/:id", async (req: Request, res: Response) => {
   }
 });
 
+// 6. GET /api/attachments/:id (Attachment Metadata)
+attachmentsRouter.get("/:id", async (req: Request, res: Response) => {
+  const requesterId = getRequesterId(req);
+  if (!requesterId) {
+    return res.status(400).json({ error: "Requester identity is required" });
+  }
+
+  const attachmentId = Number(req.params.id);
+  if (isNaN(attachmentId)) {
+    return res.status(400).json({ error: "Invalid attachment ID" });
+  }
+
+  try {
+    const attachment = await prisma.attachment.findUnique({
+      where: { id: attachmentId },
+      include: {
+        ticket: {
+          select: { requesterId: true },
+        },
+      },
+    });
+
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    if (attachment.ticket.requesterId !== requesterId) {
+      return res.status(403).json({
+        error: "Forbidden: You do not own this attachment",
+      });
+    }
+
+    return res.status(200).json({
+      id: attachment.id,
+      ticketId: attachment.ticketId,
+      fileName: attachment.originalFileName || attachment.fileName,
+      fileSize: attachment.fileSize,
+      mimeType: attachment.mimeType,
+      isRemoved: attachment.isRemoved,
+      removalReason: attachment.removalReason,
+      removedAt: attachment.removedAt,
+      createdAt: attachment.createdAt,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to retrieve attachment metadata",
+    });
+  }
+});
+
 // 6. GET /api/attachments/:id/download (Download Stream)
 attachmentsRouter.get("/:id/download", async (req: Request, res: Response) => {
   const requesterId = getRequesterId(req);
@@ -646,3 +702,10 @@ attachmentsRouter.get("/:id/download", async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+const decodeOriginalFileName = (fileName: string): string => {
+  const decoded = Buffer.from(fileName, "latin1").toString("utf8");
+
+  // ใช้ค่าที่ decode แล้วเฉพาะเมื่อไม่เกิดอักขระเสียหาย
+  return decoded.includes("\uFFFD") ? fileName : decoded;
+};
