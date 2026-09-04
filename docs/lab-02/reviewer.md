@@ -30,8 +30,15 @@ Every PR merged into Kulchaya's repo (`chayongchaya/toktickit`), as reviewed by 
 | [#36](https://github.com/chayongchaya/toktickit/pull/36) | fix: implement attachment metadata endpoint, server tests, and test scripts | `feat/lab2-backend-and-tests` → `lab2-staging` | `47c6036` | #37 | yesterday | @chayanitkunt | ✅ Approved & Merged |
 | [#38](https://github.com/chayongchaya/toktickit/pull/38) | fix: adjust Lab 2 UI | `fix/ui-adjustments` → `lab2-staging` | `92aea20` | #39 | yesterday | @chayanitkunt | ✅ Approved & Merged |
 | [#41](https://github.com/chayongchaya/toktickit/pull/41) | fix(test): fix test command and active reference fixtures | `fix/lab2-fixtures` → `lab2-staging` | `d56a5e7` | #40 | yesterday | @chayanitkunt | ✅ Approved & Merged |
+| [#42](https://github.com/chayongchaya/toktickit/pull/42) | docs: fix spec mismatch, reviewer evidence, and missing files | `update/docs/lab2-spec-and-deliverables` → `lab2-staging` | `bdaf375` | #18 | 4 minutes ago | @chayanitkunt | ✅ Approved & Merged |
 
-> **⚠️ Open item:** No PR merging `lab2-staging` → `main` was found in this repo's history. If the labsheet requires a documented release into `main`, that PR still needs to be opened and merged, and its number/link/date added here.
+### Release into `main`
+
+| PR # | Title | Branch → Target | Merge Commit | Merged | Reviewer | Approval Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#43](https://github.com/chayongchaya/toktickit/pull/43) | complete lab-02 | `lab2-staging` → `main` | `483eeef` | now | @chayanitkunt | ✅ Approved & Merged |
+
+PR #43 consolidated all 49 commits from `lab2-staging` (PRs #19–#42) into `main`, completing the documented release for Lab 2.
 
 ## 3. Comments Received (as Author) and Responses
 
@@ -54,6 +61,8 @@ Comments @chayanitkunt left on Kulchaya's (@chayongchaya) PRs, and how they were
 | #36 | "Awesome work completing the Definition of Done for Lab 2! Approved and ready to merge. Attachment Metadata Endpoint: GET /api/attachments/:id correctly handles JSON responses, 403 ownership checks, and 404s. Complete Test Coverage: closed all 6 outstanding tests (UNIT-01 through API-09) with green results. Developer DX: root package.json test scripts (test:server & test:client) work seamlessly." | "Thank you so much" | ✅ |
 | #38 | "Nice UI polish! Read-only ticket fields are clean and prevent accidental edits. Configurable page size on the ticket list improves UX for large datasets." | "Thanks for helping" | ✅ |
 | #41 | "Great job! Approve!" | "thanks" | ✅ |
+| #42 | "Excellent documentation and deliverable cleanup! Approved and ready to merge. Specification Sync: Updated §8 to accurately reflect DELETE /api/attachments/:id. Deliverables & Evidence: Real evidence screenshots and formatted AI usage table complete the reviewer checklist. DevOps: Included docker-compose.yml for Postgres environment setup." | "Thank you so much for the review and approval! Merging this now." | ✅ |
+| #43 | "approve!" | "Thank you" | ✅ |
 
 ## 4. Notable Iteration: PR #25 → #27
 
@@ -61,6 +70,6 @@ PR #25 was approved and merged, but the author proactively flagged a bug discove
 
 ## 5. Summary
 
-In Lab 2, 15 feature/fix/test PRs on `chayongchaya/toktickit` (#19–#41) were opened by Kulchaya Paipinij, each linked to a tracked issue, reviewed by Chayanit Kuntanarumitkul (@chayanitkunt), and merged into `lab2-staging`. Reviews covered database schema and seed data, requester context and session handling, ticket CRUD flows, attachment upload/ownership/soft-deletion, responsive UI, Playwright E2E coverage, and backend/frontend test completion against the Lab 2 Definition of Done. All 15 PRs were approved (14 with an explicit GitHub "Approved" review, 1 — #33 — approved via comment only) and merged by @chayanitkunt.
+In Lab 2, 16 feature/fix/test/docs PRs on `chayongchaya/toktickit` (#19–#42) were opened by Kulchaya Paipinij, each linked to a tracked issue, reviewed by Chayanit Kuntanarumitkul (@chayanitkunt), and merged into `lab2-staging`. Reviews covered database schema and seed data, requester context and session handling, ticket CRUD flows, attachment upload/ownership/soft-deletion, responsive UI, Playwright E2E coverage, backend/frontend test completion against the Lab 2 Definition of Done, and final documentation/evidence cleanup. All 16 PRs were approved (15 with an explicit GitHub "Approved" review, 1 — #33 — approved via comment only) and merged by @chayanitkunt.
 
-**Outstanding for this record:** a `lab2-staging` → `main` release PR, if the labsheet requires one — not yet found in the repo history above.
+Finally, PR #43 merged `lab2-staging` into `main` (49 commits, reviewed and approved by @chayanitkunt), completing the documented release for Lab 2. No outstanding items remain.
