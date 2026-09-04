@@ -8,16 +8,18 @@
 
 ## Prompt History
 
-1. Add a metadata-only attachment endpoint with ownership validation.
-2. Fix the Prisma type error for `requestedPriority`.
-3. Explain how to run TypeScript checks without generating JavaScript files.
-4. Create tests for ticket-number format and collision retry logic.
-5. Create an integration test for invalid priorities and inactive reference data.
-6. Create a concurrent API test using `Promise.all` to verify unique ticket numbers.
-7. Fix Thai and space-containing filenames in attachment metadata.
-8. Add read-only Ticket Number and Ticket Date fields to the Create Ticket page.
-9. Add a configurable page-size selector to the Ticket List page.
-10. Create Git branches, commits, and pull requests for the completed work.
+| # | Prompt | Purpose / Outcome |
+| --- | --- | --- |
+| 1 | Add a metadata-only attachment endpoint with ownership validation. | Implemented `GET /api/attachments/:id` returning safe, ownership-checked metadata. |
+| 2 | Fix the Prisma type error for `requestedPriority`. | Corrected the enum typing between the API payload and the Prisma `Priority` enum. |
+| 3 | Explain how to run TypeScript checks without generating JavaScript files. | Confirmed `tsc --noEmit` as the check command used before commits. |
+| 4 | Create tests for ticket-number format and collision retry logic. | Produced `ticket-number.unit.test.ts`, later corrected after a bug was found (see reflection). |
+| 5 | Create an integration test for invalid priorities and inactive reference data. | Produced `reference-data.api.test.ts` covering inactive Category/RelatedSystem/Requester rejection. |
+| 6 | Create a concurrent API test using `Promise.all` to verify unique ticket numbers. | Produced the concurrency case in `tickets.create.test.ts` (AC-10). |
+| 7 | Fix Thai and space-containing filenames in attachment metadata. | Added `decodeOriginalFileName` to correct Latin-1/UTF-8 mis-decoding. |
+| 8 | Add read-only Ticket Number and Ticket Date fields to the Create Ticket page. | Applied per peer-review feedback in `reviewer.md`. |
+| 9 | Add a configurable page-size selector to the Ticket List page. | Applied per peer-review feedback in `reviewer.md`. |
+| 10 | Create Git branches, commits, and pull requests for the completed work. | Used to draft branch names/commit messages for the required feature-branch workflow. |
 
 ## Reflection and Critical Review
 

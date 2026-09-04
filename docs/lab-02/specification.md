@@ -68,7 +68,7 @@ The IT department needs a functional, responsive web interface for requesters to
 - `GET /api/tickets/:id`: Returns details of an owned ticket.
 - `POST /api/tickets/:id/attachments`: Uploads an attachment for an owned ticket.
 - `GET /api/attachments/:id`: Returns metadata for an owned attachment.
-- `PATCH /api/attachments/:id/remove`: Soft-removes an attachment with a mandatory reason.
+- `DELETE /api/attachments/:id`: Soft-removes an attachment with a mandatory reason (sent in the request body).
 
 ## 9. Acceptance Criteria
 - **AC-01**: Given valid ticket fields, when the requester submits the form, then a ticket is saved in the database with `currentStatus = NEW` and a unique Ticket Number is returned.
