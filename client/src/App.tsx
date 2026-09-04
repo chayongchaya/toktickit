@@ -1,10 +1,16 @@
 import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { checkSystem, Category } from "./api.js";
+import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
+import { Navbar } from "./components/Navbar.js";
+import { SelectRequesterPage } from "./pages/SelectRequesterPage.js";
+import { CreateTicketPage } from "./pages/CreateTicketPage.js";
+import { TicketListPage } from "./pages/TicketListPage.js";
+import { TicketDetailPage } from "./pages/TicketDetailPage.js";
 
-// UI states you must handle for Issue 4: idle, loading, success, error.
 type UiState = "idle" | "loading" | "success" | "error";
 
-export default function App() {
+function Lab1Screen() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -33,14 +39,12 @@ export default function App() {
         {state === "loading" ? "Loading…" : "Check System"}
       </button>
 
-      {/* Render Error (Offline) State */}
       {state === "error" && (
         <div className="alert alert-danger mt-3" role="alert">
           Offline — System unavailable
         </div>
       )}
 
-      {/* Render Success (Online + Categories) State */}
       {state === "success" && (
         <div className="mt-3">
           <div className="alert alert-success" role="alert">
@@ -57,5 +61,68 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  const { currentRequester, loading } = useRequester();
+
+  if (loading) {
+    return <div className="p-5 text-center">Loading user context...</div>;
+  }
+
+  if (!currentRequester) {
+    return <Navigate to="/select-requester" replace />;
+  }
+
+  return (
+    <>
+      <Navbar />
+      <main className="container py-4">{children}</main>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <RequesterProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* หน้าแรกสุดของระบบ: วิ่งไปหน้า Select Requester เสมอ */}
+          <Route path="/" element={<Navigate to="/select-requester" replace />} />
+          <Route path="/lab1" element={<Lab1Screen />} />
+          <Route path="/select-requester" element={<SelectRequesterPage />} />
+
+          {/* Protected Routes สำหรับระบบตั๋ว */}
+          <Route
+            path="/tickets"
+            element={
+              <ProtectedLayout>
+                <TicketListPage />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/tickets/new"
+            element={
+              <ProtectedLayout>
+                <CreateTicketPage />
+              </ProtectedLayout>
+            }
+          />
+          <Route
+            path="/tickets/:id"
+            element={
+              <ProtectedLayout>
+                <TicketDetailPage />
+              </ProtectedLayout>
+            }
+          />
+
+          {/* Catch-all Route: ต้องอยู่บรรทัดสุดท้าย */}
+          <Route path="*" element={<Navigate to="/select-requester" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </RequesterProvider>
   );
 }

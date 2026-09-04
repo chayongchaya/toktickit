@@ -1,19 +1,27 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
+import requesterRoutes from "./routes/requesters.js";
+import systemRoutes from "./routes/systems.js";
+import { ticketsRouter, attachmentsRouter } from "./routes/tickets.js";
 
-// The Express app is exported separately from app.listen() (see index.ts) so
-// Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
-app.use(cors());          // already wired: lets the Vite dev server call this API
+app.use(cors());
 app.use(express.json());
 
-// ---------------------------------------------------------------------------
-// Issue 2 — API health check
-// Make the test in tests/lab-01/health.test.ts pass.
-// It must return HTTP 200 with JSON: { status: "ok", service: "TokTickIT API" }
-// ---------------------------------------------------------------------------
+// NOTE: uploaded attachment files are intentionally NOT served as a public
+// static directory here. Section 4.5 of the Lab 2 handout requires that
+// (a) removed attachments must not be downloadable/previewable and
+// (b) one Requester must never be able to access another Requester's
+// attachment. Both of those checks live in
+// GET /api/attachments/:id/download (ownership + isRemoved check), so all
+// attachment access must go through that endpoint. Mounting
+// express.static("/uploads", ...) would let anyone who knows/guesses a
+// stored filename bypass both checks entirely, so it must not be added
+// back without also re-implementing ownership + removal checks in front
+// of it.
+
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({
     status: "ok",
@@ -21,17 +29,11 @@ app.get("/api/health", (_req: Request, res: Response) => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Issue 4 — Category list
-// Add:  GET /api/categories
-//   -> read categories from PostgreSQL via getPrisma().category.findMany(...)
-//   -> return each { id, name } in a predictable (id) order
-//   -> on failure, respond 500 with a safe message (no internal details)
-// ---------------------------------------------------------------------------
 app.get("/api/categories", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     const categories = await prisma.category.findMany({
+      where: { isActive: true },
       select: {
         id: true,
         name: true,
@@ -45,5 +47,16 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to fetch categories" });
   }
 });
+
+// Routes สำหรับ Lab 2
+// systemRoutes already defines its own "/related-systems" and "/systems"
+// sub-paths, so mounting it once at "/api" is enough to expose both
+// GET /api/related-systems and GET /api/systems. Mounting it again at
+// "/api/related-systems" was dead/broken code (it would resolve to
+// "/api/related-systems/related-systems") and has been removed.
+app.use("/api", requesterRoutes);
+app.use("/api", systemRoutes);
+app.use("/api/tickets", ticketsRouter);
+app.use("/api/attachments", attachmentsRouter);
 
 export default app;
