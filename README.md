@@ -1,6 +1,6 @@
 # TokTickIT - IT Service Desk Application
 
-TokTickIT is a full-stack IT service desk web application developed as part of **CPE 334**. It facilitates ticket management, category querying, and system health monitoring through a modern, responsive web interface.
+TokTickIT is a full-stack IT service desk web application developed as part of **CPE 334**. This increment (Lab 2) delivers the Requester-facing ticketing MVP: a temporary Development Requester selector (test-only, not real authentication), ticket creation with validated fields and attachments, a searchable/filterable/sortable/paginated My Tickets list, a read-only Ticket Detail screen, and attachment upload/download/soft-removal — all built on the Zen Green UI theme.
 
 ---
 
@@ -94,27 +94,9 @@ docker compose up -d
 cd server
 npx prisma migrate dev
 
-# Seed initial categories into the database
+# Seed reference data (categories, related systems) and Development Requesters
 npx prisma db seed
 cd ..
-```
-
----
-
-## 🚀 Environment Setup
-
-Configure the PostgreSQL connection string in `server/.env`:
-
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/toktickit"
-```
-
-Start PostgreSQL using your local PostgreSQL service, then run the Prisma setup:
-
-```powershell
-cd server
-npx prisma generate
-npx prisma migrate dev
 ```
 
 ---
@@ -147,7 +129,7 @@ npm run dev
 
 ### Backend Test Suite
 
-Executes integration tests for API routes (`/health` and `/api/categories`):
+Executes unit and API/integration tests for Lab 2 (reference data, Development Requester context, ticket creation, ticket listing, ticket detail, and attachment upload/download/soft-removal):
 
 ```bash
 cd server
@@ -156,7 +138,7 @@ npm test
 
 ### Frontend Test Suite
 
-Executes component tests and Mock UI verification:
+Executes component tests for Development Requester Selection, Create Ticket, My Tickets, Requester Ticket Detail, the Attachment section, and Zen Green style conformance:
 
 ```bash
 cd client
@@ -165,12 +147,23 @@ npm test
 
 ---
 
-## 📡 API Reference (Lab 1)
+## 📡 API Reference (Lab 2)
 
 | Method | Endpoint | Description | Expected Status |
 | --- | --- | --- | --- |
-| `GET` | `/health` | Health check endpoint returning `{ status: "ok" }` | `200 OK` |
-| `GET` | `/api/categories` | Returns an array of ticket categories ordered by ID | `200 OK` |
+| `GET` | `/api/health` | Health check endpoint returning `{ status: "ok" }` | `200 OK` |
+| `GET` | `/api/categories` | Returns active ticket categories | `200 OK` |
+| `GET` | `/api/related-systems` (alias: `/api/systems`) | Returns active related systems | `200 OK` |
+| `GET` | `/api/requesters` | Returns active Development Requesters (inactive requesters excluded) | `200 OK` |
+| `GET` | `/api/tickets` | Returns the selected Requester's tickets, with search, filter, sort, and pagination | `200 OK` |
+| `POST` | `/api/tickets` | Creates a new ticket for the selected Requester and returns the generated Ticket Number | `201 Created` |
+| `GET` | `/api/tickets/:id` | Returns one owned ticket's details (ownership-checked) | `200 OK` / `403` / `404` |
+| `POST` | `/api/tickets/:id/attachments` | Uploads a permitted attachment (JPG/PNG/WEBP/PDF, ≤5 MB, max 5 active per ticket) | `201 Created` |
+| `GET` | `/api/attachments/:id` | Returns attachment metadata (ownership-checked, safe fields only) | `200 OK` / `403` / `404` |
+| `GET` | `/api/attachments/:id/download` | Streams an active (non-removed) attachment file | `200 OK` / `404` |
+| `DELETE` | `/api/attachments/:id` | Soft-removes an attachment with a mandatory reason | `200 OK` / `403` / `404` |
+
+See `docs/lab-02/api-spec.md` for full request/response shapes, validation rules, and error cases.
 
 ---
 
