@@ -1,4 +1,4 @@
-# TokTickIT REST API Specification (Sprint 2 MVP)
+﻿# TokTickIT REST API Specification (Sprint 2 MVP)
 
 ## 1. General Conventions & Headers
 
@@ -19,7 +19,7 @@ Retrieves the list of active development requesters for the simulated user conte
 - **Endpoint:** `GET /api/requesters`
 - **Headers:** None required
 
-**Success Response — `200 OK`**
+**Success Response `200 OK`**
 ```json
 [
   {
@@ -38,7 +38,7 @@ Retrieves the list of active development requesters for the simulated user conte
 ```
 
 **Error Response**
-- `500 Internal Server Error` — Database query failed
+- `500 Internal Server Error`  Database query failed
 
 ---
 
@@ -48,7 +48,7 @@ Retrieves all active ticket categories for dropdown population.
 
 - **Endpoint:** `GET /api/categories`
 
-**Success Response — `200 OK`**
+**Success Response   `200 OK`**
 ```json
 [
   { "id": 1, "name": "Account and Access", "isActive": true },
@@ -65,8 +65,9 @@ Retrieves all active ticket categories for dropdown population.
 Retrieves all active related systems for dropdown selection.
 
 - **Endpoint:** `GET /api/related-systems`
+- **Alias:** `GET /api/systems`
 
-**Success Response — `200 OK`**
+**Success Response   `200 OK`**
 ```json
 [
   { "id": 1, "name": "Corporate Laptop", "isActive": true },
@@ -86,11 +87,13 @@ Retrieves all active related systems for dropdown selection.
 Creates a new support ticket associated with the requester. The backend automatically assigns a unique Ticket Number and sets the initial status to `NEW`.
 
 - **Endpoint:** `POST /api/tickets`
-- **Headers:** `x-requester-id: <number>` **(Required)**
+- **Headers:** None required
+- **Request Body:** Must include numeric `requesterId`
 
 **Request Body**
 ```json
 {
+  "requesterId": 1,
   "categoryId": 2,
   "relatedSystemId": 1,
   "requestedPriority": "MEDIUM",
@@ -99,7 +102,7 @@ Creates a new support ticket associated with the requester. The backend automati
 }
 ```
 
-**Success Response — `201 Created`**
+**Success Response   `201 Created`**
 ```json
 {
   "id": 101,
@@ -118,8 +121,10 @@ Creates a new support ticket associated with the requester. The backend automati
 ```
 
 **Error Responses**
-- `400 Bad Request` — Validation failure (e.g., missing `summary`/`description`, invalid length)
-- `401 Unauthorized` / `400 Bad Request` — Missing `x-requester-id` header
+- `400 Bad Request` — Missing or invalid `requesterId`, or validation failure.
+- `403 Forbidden` — The requester is inactive.
+- `404 Not Found` — The requester does not exist.
+- `409 Conflict` — Duplicate immediate ticket submission.
 
 ---
 
@@ -128,22 +133,24 @@ Creates a new support ticket associated with the requester. The backend automati
 Retrieves a paginated list of tickets owned strictly by the currently selected requester.
 
 - **Endpoint:** `GET /api/tickets`
-- **Headers:** `x-requester-id: <number>` **(Required)**
+- **Query Parameter:** `requesterId` **(Required)**
 
 **Query Parameters**
 
 | Parameter | Required | Description |
 |---|---|---|
+| `requesterId` | required | Restricts results to the selected requester |
 | `search` | optional | Matches substring in `ticketNumber` or `summary` |
 | `categoryId` | optional | Filters by category ID |
 | `requestedPriority` | optional | `LOW`, `MEDIUM`, `HIGH` |
+| `itPriority` | optional | Filters by IT priority: `LOW`, `MEDIUM`, `HIGH` |
 | `currentStatus` | optional | `NEW`, `IN_PROGRESS`, `RESOLVED`, etc. |
 | `sortBy` | optional (default: `createdAt`) | `ticketNumber`, `createdAt`, `updatedAt` |
 | `sortOrder` | optional (default: `desc`) | `asc` or `desc` |
 | `page` | optional (default: `1`) | Page number (1-indexed) |
-| `pageSize` | optional (default: `10`) | Items per page |
+| `pageSize` | optional (default: `10`) | Items per page. The client UI defaults to `8` and allows `5`, `8`, `10`, or `20`. |
 
-**Success Response — `200 OK`**
+**Success Response   `200 OK`**
 ```json
 {
   "data": [
@@ -176,9 +183,9 @@ Retrieves a paginated list of tickets owned strictly by the currently selected r
 Retrieves complete details of a single ticket. Enforces strict ownership checks.
 
 - **Endpoint:** `GET /api/tickets/:id`
-- **Headers:** `x-requester-id: <number>` **(Required)**
+- **Query Parameter:** `requesterId` **(Required)**
 
-**Success Response — `200 OK`**
+**Success Response   `200 OK`**
 ```json
 {
   "id": 101,
@@ -196,7 +203,8 @@ Retrieves complete details of a single ticket. Enforces strict ownership checks.
   "attachments": [
     {
       "id": 1,
-      "fileName": "battery_diagnostic.png",
+      "originalFileName": "battery_diagnostic.png",
+      "fileName": "generated-storage-name.png",
       "fileSize": 204800,
       "mimeType": "image/png",
       "isRemoved": false,
@@ -208,7 +216,7 @@ Retrieves complete details of a single ticket. Enforces strict ownership checks.
 ```
 
 **Error Responses**
-- `403 Forbidden` / `404 Not Found` — Ticket belongs to a different requester or does not exist
+- `403 Forbidden` / `404 Not Found`   Ticket belongs to a different requester or does not exist
 
 ---
 
@@ -232,8 +240,9 @@ Uploads a permitted attachment to an owned ticket.
 {
   "id": 2,
   "ticketId": 101,
-  "fileName": "screenshot_error.png",
-  "fileSize": 1048576,
+  "originalFileName": "battery_diagnostic.png",
+  "fileName": "generated-storage-name.png",
+  "fileSize": 204800,
   "mimeType": "image/png",
   "isRemoved": false,
   "createdAt": "2026-08-24T12:10:00.000Z"
@@ -241,39 +250,28 @@ Uploads a permitted attachment to an owned ticket.
 ```
 
 **Error Responses**
-- `400 Bad Request` — File type not permitted, size > 5 MB, or active attachments limit (5 files) reached
-- `403 Forbidden` — Requester does not own this ticket
+- `400 Bad Request`   File type not permitted, size > 5 MB, or active attachments limit (5 files) reached
+- `403 Forbidden`   Requester does not own this ticket
 
 ---
 
 ### 2.8 Soft Remove Attachment
 
-Performs a soft removal of an attachment. Requires a mandatory removal reason.
-
 - **Endpoint:** `DELETE /api/attachments/:id`
 - **Headers:** `x-requester-id: <number>` **(Required)**
-
-**Request Body**
-```json
-{
-  "removalReason": "Uploaded incorrect log file."
-}
-```
 
 **Success Response — `200 OK`**
 ```json
 {
   "id": 1,
-  "fileName": "battery_diagnostic.png",
   "isRemoved": true,
-  "removalReason": "Uploaded incorrect log file.",
-  "removedAt": "2026-08-24T12:15:00.000Z"
+  "removalReason": "Uploaded incorrect log file."
 }
 ```
 
 **Error Responses**
-- `400 Bad Request` — Missing `removalReason`
-- `403 Forbidden` / `404 Not Found` — Unauthorized requester or attachment not found
+- `400 Bad Request`   Missing `removalReason`
+- `403 Forbidden` / `404 Not Found`   Unauthorized requester or attachment not found
 
 ---
 
@@ -284,9 +282,36 @@ Downloads an active attachment file stream. Soft-removed files cannot be downloa
 - **Endpoint:** `GET /api/attachments/:id/download`
 - **Headers:** `x-requester-id: <number>` **(Required)**
 
-**Success Response — `200 OK`**
+**Success Response   `200 OK`**
 Binary file stream with appropriate `Content-Type` and `Content-Disposition`.
 
 **Error Responses**
-- `404 Not Found` — Attachment does not exist or has been soft-removed (`isRemoved = true`)
-- `403 Forbidden` — Unauthorized requester
+- `404 Not Found`   Attachment does not exist or has been soft-removed (`isRemoved = true`)
+- `403 Forbidden`   Unauthorized requester
+
+---
+
+### 2.10 Get Attachment Metadata
+
+- **Endpoint:** `GET /api/attachments/:id`
+- **Headers:** `x-requester-id: <number>` **(Required)**
+
+Returns metadata for an attachment owned by the requester. The response preserves
+`originalFileName`, including Thai characters and spaces.
+
+**Success Response — `200 OK`**
+```json
+{
+  "id": 2,
+  "ticketId": 101,
+  "originalFileName": "battery_diagnostic.png",
+  "fileName": "generated-storage-name.png",
+  "fileSize": 204800,
+  "mimeType": "image/png",
+  "isRemoved": false,
+  "removalReason": null,
+  "createdAt": "2026-08-24T12:05:00.000Z"
+}
+```
+
+---
