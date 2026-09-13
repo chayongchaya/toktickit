@@ -17,5 +17,22 @@ services:
       timeout: 5s
       retries: 10
 
+  db-migration-test:
+    image: postgres:16
+    container_name: toktickit-postgres-migtest
+    environment:
+      POSTGRES_USER: toktickit
+      POSTGRES_PASSWORD: toktickit
+      POSTGRES_DB: toktickit_migtest
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U toktickit -d toktickit_migtest"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   toktickit_pgdata:
