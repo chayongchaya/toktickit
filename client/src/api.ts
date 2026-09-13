@@ -1,5 +1,19 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+// Lab 3: every authenticated call must send the session cookie. Public,
+// pre-login calls (like /api/health or the auth calls below) also set this
+// harmlessly — the browser simply has no cookie to send yet on first login.
+const CREDENTIALS: RequestCredentials = "include";
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  role: "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+  mustChangePassword: boolean;
+}
+
+
 export interface Category {
   id: number;
   name: string;
@@ -85,13 +99,25 @@ export interface TicketListParams {
   pageSize?: number;
 }
 
+export class ApiError extends Error {
+  field?: string;
+  status: number;
+  constructor(message: string, status: number, field?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.field = field;
+  }
+}
+
 async function handleResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     const message =
       (body && typeof body === "object" && "error" in body && body.error) ||
       fallbackMessage;
-    throw new Error(message);
+    const field = body && typeof body === "object" && "field" in body ? body.field : undefined;
+    throw new ApiError(message, res.status, field);
   }
   return body as T;
 }
@@ -198,4 +224,49 @@ export async function deleteAttachment(
     body: JSON.stringify({ removalReason }),
   });
   return handleResponse<Attachment>(res, "Failed to remove attachment.");
+}
+
+// --- Lab 3: Authentication -------------------------------------------------
+
+export async function login(email: string, password: string): Promise<AuthUser> {
+  const res = await fetch(`${API_URL}/api/auth/login`, {
+    method: "POST",
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  return handleResponse<AuthUser>(res, "Login failed.");
+}
+
+export async function logout(): Promise<void> {
+  const res = await fetch(`${API_URL}/api/auth/logout`, {
+    method: "POST",
+    credentials: CREDENTIALS,
+  });
+  if (!res.ok && res.status !== 401) {
+    // A 401 here just means "already logged out" from the server's point of
+    // view — nothing to surface to the user as an error.
+    await handleResponse<void>(res, "Logout failed.");
+  }
+}
+
+// Returns null (rather than throwing) for a 401, since "not logged in" is
+// the normal, expected first-load state for this call, not an error.
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const res = await fetch(`${API_URL}/api/auth/me`, { credentials: CREDENTIALS });
+  if (res.status === 401) return null;
+  return handleResponse<AuthUser>(res, "Failed to load current user.");
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ mustChangePassword: boolean }> {
+  const res = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: "POST",
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return handleResponse<{ mustChangePassword: boolean }>(res, "Failed to change password.");
 }
