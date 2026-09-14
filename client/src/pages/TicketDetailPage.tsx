@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useRequester } from "../context/RequesterContext.js";
+import { useAuth } from "../context/AuthContext.js";
 import {
   deleteAttachment,
   getTicketById,
   uploadAttachment,
+  getPublicComments,
+  postPublicComment,
+  setProblemAppearsResolved,
   type Ticket,
-} from "../api";
+  type PublicComment,
+} from "../api.js";
 
 interface AttachmentItem {
   id: number;
@@ -36,11 +40,21 @@ const MAX_ACTIVE_ATTACHMENTS = 5;
 export const TicketDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentRequester } = useRequester();
+  const { user } = useAuth();
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Lab 3: Public Comments (FR-10/BR-04) and the "problem appears resolved"
+  // flag (FR-11/BR-05) — new for the Requester Ticket Detail screen.
+  const [comments, setComments] = useState<PublicComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [postingComment, setPostingComment] = useState(false);
+  const [updatingResolvedFlag, setUpdatingResolvedFlag] = useState(false);
+  const [resolvedFlagError, setResolvedFlagError] = useState<string | null>(null);
 
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] =
@@ -53,13 +67,13 @@ export const TicketDetailPage: React.FC = () => {
   const fetchTicketDetails = async (
     isActive: () => boolean = () => true
   ) => {
-    if (!currentRequester || !id) return;
+    if (!user || !id) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const data = await getTicketById(id, currentRequester.id);
+      const data = await getTicketById(id);
 
       if (isActive()) {
         setTicket(data);
@@ -80,15 +94,70 @@ export const TicketDetailPage: React.FC = () => {
     }
   };
 
+  const fetchComments = async (isActive: () => boolean = () => true) => {
+    if (!id) return;
+    setCommentsLoading(true);
+    try {
+      const data = await getPublicComments(id);
+      if (isActive()) setComments(data);
+    } catch (err) {
+      // A failed comment load shouldn't block the rest of the ticket detail
+      // screen — the ticket fields above still render from fetchTicketDetails.
+      if (isActive()) setCommentError("Unable to load comments right now.");
+    } finally {
+      if (isActive()) setCommentsLoading(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
 
     fetchTicketDetails(() => !cancelled);
+    fetchComments(() => !cancelled);
 
     return () => {
       cancelled = true;
     };
-  }, [id, currentRequester]);
+  }, [id, user]);
+
+  const handlePostComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+
+    const trimmed = commentDraft.trim();
+    if (!trimmed) {
+      setCommentError("Comment cannot be empty.");
+      return;
+    }
+
+    setPostingComment(true);
+    setCommentError(null);
+    try {
+      const created = await postPublicComment(id, trimmed);
+      setComments((prev) => [...prev, created]);
+      setCommentDraft("");
+    } catch (err) {
+      setCommentError(err instanceof Error ? err.message : "Failed to post comment.");
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
+  const handleToggleResolvedFlag = async () => {
+    if (!id || !ticket) return;
+    setUpdatingResolvedFlag(true);
+    setResolvedFlagError(null);
+    try {
+      const updated = await setProblemAppearsResolved(id, !ticket.problemAppearsResolved);
+      setTicket(updated);
+    } catch (err) {
+      setResolvedFlagError(
+        err instanceof Error ? err.message : "Failed to update the ticket."
+      );
+    } finally {
+      setUpdatingResolvedFlag(false);
+    }
+  };
 
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -127,13 +196,9 @@ export const TicketDetailPage: React.FC = () => {
     }
 
     try {
-      if (!currentRequester) return;
+      if (!user) return;
 
-      await uploadAttachment(
-        ticket.id,
-        file,
-        currentRequester.id
-      );
+      await uploadAttachment(ticket.id, file);
 
       await fetchTicketDetails();
 
@@ -167,7 +232,7 @@ export const TicketDetailPage: React.FC = () => {
   };
 
   const confirmRemoveAttachment = async () => {
-    if (!removeTarget || !currentRequester) return;
+    if (!removeTarget || !user) return;
 
     const trimmedReason = removeReason.trim();
 
@@ -180,11 +245,7 @@ export const TicketDetailPage: React.FC = () => {
     setRemoveReasonError(null);
 
     try {
-      await deleteAttachment(
-        removeTarget.id,
-        trimmedReason,
-        currentRequester.id
-      );
+      await deleteAttachment(removeTarget.id, trimmedReason);
 
       setRemoveTarget(null);
       setRemoveReason("");
@@ -528,6 +589,42 @@ export const TicketDetailPage: React.FC = () => {
               value={ticket.description}
             />
           </div>
+
+          {/* Lab 3 (FR-11/BR-05): a Requester may flag that the problem
+              appears resolved, but this never changes currentStatus —
+              only IT Staff/Administrator can formally set Resolved/Closed. */}
+          <div
+            className="d-flex align-items-center justify-content-between p-3 rounded-2"
+            style={{ backgroundColor: "#F5F7F6", border: "1px solid #E3E8E5" }}
+          >
+            <div>
+              <div className="small fw-semibold text-dark">
+                {ticket.problemAppearsResolved
+                  ? "You marked this as resolved"
+                  : "Has the problem been fixed?"}
+              </div>
+              <div className="text-muted" style={{ fontSize: "0.78rem" }}>
+                This only lets IT Staff know your side looks fixed — they still close the ticket formally.
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-light border"
+              onClick={handleToggleResolvedFlag}
+              disabled={updatingResolvedFlag}
+            >
+              {updatingResolvedFlag
+                ? "Saving…"
+                : ticket.problemAppearsResolved
+                ? "Undo"
+                : "Mark problem appears resolved"}
+            </button>
+          </div>
+          {resolvedFlagError && (
+            <div className="alert alert-danger py-2 small mt-2" role="alert">
+              {resolvedFlagError}
+            </div>
+          )}
         </div>
 
         <div className="card border-0 shadow-sm rounded-3 bg-white">
@@ -609,7 +706,7 @@ export const TicketDetailPage: React.FC = () => {
                         </span>
 
                         <a
-                          href={`/api/attachments/${att.id}/download?requesterId=${currentRequester?.id}`}
+                          href={`/api/attachments/${att.id}/download`}
                           className="text-decoration-none small fw-semibold"
                           style={{ color: "#006B3C" }}
                           download
@@ -662,6 +759,89 @@ export const TicketDetailPage: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Lab 3 (FR-10/BR-04): Public Comments — visible to Requester, IT
+            Staff, and Administrator. Append-only; no edit/delete UI exists
+            because no such API route exists either. */}
+        <div className="card border-0 shadow-sm rounded-3 bg-white mt-4">
+          <div className="card-header bg-white border-bottom px-4 py-3">
+            <h6 className="fw-bold mb-0 text-dark">
+              Public Comments{" "}
+              <span className="text-muted fw-normal">({comments.length})</span>
+            </h6>
+          </div>
+          <div className="card-body p-4">
+            <form onSubmit={handlePostComment} className="mb-4">
+              <label htmlFor="public-comment" className="form-label small text-muted mb-1">
+                Add Public Comment
+              </label>
+              <div className="d-flex gap-2">
+                <textarea
+                  id="public-comment"
+                  className="form-control form-control-sm"
+                  rows={2}
+                  placeholder="Type your comment here..."
+                  value={commentDraft}
+                  onChange={(e) => setCommentDraft(e.target.value)}
+                  disabled={postingComment}
+                  maxLength={2000}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-sm text-white align-self-start"
+                  style={{ backgroundColor: "#006B3C", whiteSpace: "nowrap" }}
+                  disabled={postingComment}
+                >
+                  {postingComment ? "Posting…" : "🖈 Post Comment"}
+                </button>
+              </div>
+              {commentError && (
+                <div className="alert alert-danger py-2 small mt-2" role="alert">
+                  {commentError}
+                </div>
+              )}
+            </form>
+
+            {commentsLoading ? (
+              <p className="text-muted small">Loading comments...</p>
+            ) : comments.length === 0 ? (
+              <p className="text-muted small fst-italic">
+                No comments yet. Be the first to add one.
+              </p>
+            ) : (
+              <div className="d-flex flex-column gap-3">
+                {comments.map((c) => (
+                  <div key={c.id} className="d-flex gap-3">
+                    <div
+                      className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold text-white"
+                      style={{ width: 36, height: 36, backgroundColor: "#006B3C", fontSize: "0.8rem" }}
+                    >
+                      {c.author.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-grow-1">
+                      <div className="d-flex align-items-center gap-2 mb-1">
+                        <span className="fw-semibold small text-dark">{c.author.name}</span>
+                        <span className="badge rounded-pill bg-light text-muted border" style={{ fontSize: "0.7rem" }}>
+                          {c.author.role === "REQUESTER" ? "Requester" : "IT Support"}
+                        </span>
+                        <span className="text-muted" style={{ fontSize: "0.72rem" }}>
+                          {new Date(c.createdAt).toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <div className="small text-dark">{c.content}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
