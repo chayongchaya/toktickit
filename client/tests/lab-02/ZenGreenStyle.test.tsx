@@ -5,26 +5,33 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { CreateTicketPage } from "../../src/pages/CreateTicketPage";
 import { TicketListPage } from "../../src/pages/TicketListPage";
 import { TicketDetailPage } from "../../src/pages/TicketDetailPage";
-import { RequesterContext } from "../../src/context/RequesterContext";
 
 // Covers section 8.8 "UI Style Checking": automated assertions for required CSS
-// classes, field states, labels, asterisks, messages, and button behavior — the
-// zero-coverage gap identified during the tests.md review.
+// classes, field states, labels, asterisks, messages, and button behavior.
+//
+// Lab 3 (BR-32, docs/lab-03/tests.md MIG-03): the Development Requester
+// selector and RequesterContext are removed, so this file mocks useAuth()
+// instead of wrapping every render in RequesterContext.Provider.
 
-const mockRequester = { id: 1, name: "Jennifer Anderson", email: "jennifer@example.com", isActive: true };
+const { mockUser } = vi.hoisted(() => ({
+  mockUser: {
+    id: 1,
+    name: "Jennifer Anderson",
+    email: "jennifer@example.com",
+    role: "REQUESTER",
+    mustChangePassword: false,
+  },
+}));
 
-const withRequesterContext = (children: React.ReactNode, requester = mockRequester) => (
-  <RequesterContext.Provider
-    value={{
-      currentRequester: requester,
-      setCurrentRequester: vi.fn(),
-      requesters: [requester],
-      loading: false,
-    }}
-  >
-    {children}
-  </RequesterContext.Provider>
-);
+vi.mock("../../src/context/AuthContext.js", () => ({
+  useAuth: () => ({
+    user: mockUser,
+    loading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    markPasswordChanged: vi.fn(),
+  }),
+}));
 
 const mockCategories = [
   { id: 1, name: "Hardware", isActive: true },
@@ -53,7 +60,9 @@ describe("Zen Green UI Style Checks", () => {
   describe("Create Ticket form", () => {
     it("marks every required field with a visible asterisk", () => {
       const { container } = render(
-        withRequesterContext(<BrowserRouter><CreateTicketPage /></BrowserRouter>)
+        <BrowserRouter>
+          <CreateTicketPage />
+        </BrowserRouter>
       );
 
       const requiredFieldIds = ["summary", "category", "system", "description"];
@@ -68,7 +77,11 @@ describe("Zen Green UI Style Checks", () => {
     });
 
     it("applies the is-invalid class only to fields that actually failed validation", async () => {
-      render(withRequesterContext(<BrowserRouter><CreateTicketPage /></BrowserRouter>));
+      render(
+        <BrowserRouter>
+          <CreateTicketPage />
+        </BrowserRouter>
+      );
 
       fireEvent.click(screen.getByRole("button", { name: /submit ticket/i }));
 
@@ -95,7 +108,11 @@ describe("Zen Green UI Style Checks", () => {
         return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       });
 
-      render(withRequesterContext(<BrowserRouter><CreateTicketPage /></BrowserRouter>));
+      render(
+        <BrowserRouter>
+          <CreateTicketPage />
+        </BrowserRouter>
+      );
 
       await waitFor(() => expect(screen.getByRole("option", { name: "Hardware" })).toBeInTheDocument());
 
@@ -125,8 +142,6 @@ describe("Zen Green UI Style Checks", () => {
       category: { id: 1, name: "Hardware" },
       relatedSystemId: 1,
       relatedSystem: { id: 1, name: "Corporate Laptop" },
-      requesterId: 1,
-      requester: mockRequester,
       requestedPriority: priority,
       priority: priority,
       currentStatus: "NEW",
@@ -144,7 +159,6 @@ describe("Zen Green UI Style Checks", () => {
     it.each(["HIGH", "MEDIUM", "LOW"])("renders the %s priority badge with the spec color token", async (priority) => {
       const singleTicket = ticketWith(priority);
 
-      // สร้าง mock response ที่รองรับการ parse ข้อมูลทุกท่า
       const mockResult: any = [singleTicket];
       mockResult.data = [singleTicket];
       mockResult.tickets = [singleTicket];
@@ -170,7 +184,11 @@ describe("Zen Green UI Style Checks", () => {
         });
       });
 
-      render(withRequesterContext(<BrowserRouter><TicketListPage /></BrowserRouter>));
+      render(
+        <BrowserRouter>
+          <TicketListPage />
+        </BrowserRouter>
+      );
 
       // Scoped to the desktop table view: TicketListPage also renders a mobile
       // card list in parallel (jsdom doesn't evaluate the CSS media query that
@@ -198,6 +216,9 @@ describe("Zen Green UI Style Checks", () => {
         if (typeof url === "string" && url.includes("/api/systems")) {
           return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSystems) });
         }
+        if (typeof url === "string" && url.includes("/comments")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
         return Promise.resolve({
           ok: true,
           json: () =>
@@ -208,7 +229,6 @@ describe("Zen Green UI Style Checks", () => {
               description: "Checking field styling",
               category: { id: 2, name: "Network" },
               relatedSystem: { id: 2, name: "VPN" },
-              requester: mockRequester,
               requestedPriority: "MEDIUM",
               currentStatus: "NEW",
               createdAt: new Date().toISOString(),
@@ -218,13 +238,11 @@ describe("Zen Green UI Style Checks", () => {
       });
 
       render(
-        withRequesterContext(
-          <MemoryRouter initialEntries={["/tickets/1"]}>
-            <Routes>
-              <Route path="/tickets/:id" element={<TicketDetailPage />} />
-            </Routes>
-          </MemoryRouter>
-        )
+        <MemoryRouter initialEntries={["/tickets/1"]}>
+          <Routes>
+            <Route path="/tickets/:id" element={<TicketDetailPage />} />
+          </Routes>
+        </MemoryRouter>
       );
 
       const ticketNumberField = await screen.findByDisplayValue("TKT-2026-000001");
