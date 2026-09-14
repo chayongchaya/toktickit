@@ -2,7 +2,6 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { getPrisma } from "./prisma.js";
-import requesterRoutes from "./routes/requesters.js";
 import systemRoutes from "./routes/systems.js";
 import { ticketsRouter, attachmentsRouter } from "./routes/tickets.js";
 import { authRouter } from "./routes/auth.js";
@@ -73,23 +72,25 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
 app.use("/api/auth", authRouter);
 
 // Routes สำหรับ Lab 2
+// GET /api/requesters (the old Development Requester selector's data
+// source) has been removed entirely, not just left unused — it existed
+// only to populate SelectRequesterPage, which BR-32 retires along with
+// RequesterContext. Keeping the endpoint around would be dead code that
+// still queried a table shape (RequesterUser) that no longer exists.
+//
 // systemRoutes already defines its own "/related-systems" and "/systems"
 // sub-paths, so mounting it once at "/api" is enough to expose both
 // GET /api/related-systems and GET /api/systems. Mounting it again at
 // "/api/related-systems" was dead/broken code (it would resolve to
 // "/api/related-systems/related-systems") and has been removed.
-app.use("/api", requesterRoutes);
 app.use("/api", systemRoutes);
 
-// Lab 3: every ticket/attachment route now requires an authenticated
-// session with its password change already completed. This is
-// authentication-foundation scope only — the *internal* logic of these
-// routers still derives identity from the old x-requester-id
-// header/query/body pattern (getRequesterId in tickets.ts) rather than
-// req.user until the "requester regression" branch rewires it. Until that
-// branch lands, these routes will correctly demand login but will not yet
-// use the logged-in identity for ownership checks — a known, tracked,
-// intentional gap between these two branches, not an oversight.
+// Lab 3: every ticket/attachment route requires an authenticated session
+// with its password change already completed, AND (as of the "requester
+// regression" branch) derives the acting Requester's identity from
+// req.user.id exclusively — see tickets.ts's top-of-file comment. The old
+// x-requester-id header/query/body path and the 403-for-not-mine responses
+// have both been removed from every handler in that file.
 app.use("/api/tickets", requireAuth, blockIfMustChangePassword, ticketsRouter);
 app.use("/api/attachments", requireAuth, blockIfMustChangePassword, attachmentsRouter);
 

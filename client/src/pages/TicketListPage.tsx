@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useRequester } from "../context/RequesterContext";
-import { getCategories, type Category } from "../api";
+import { useAuth } from "../context/AuthContext.js";
+import { getCategories, type Category } from "../api.js";
 
 interface TicketItem {
   id: number;
@@ -29,7 +29,7 @@ type SortField = "ticketNumber" | "createdAt" | "updatedAt";
 const SEARCH_DEBOUNCE_MS = 350;
 
 export const TicketListPage: React.FC = () => {
-  const { currentRequester } = useRequester();
+  const { user } = useAuth();
 
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [pageSize, setPageSize] = useState<number>(8);
@@ -78,14 +78,13 @@ export const TicketListPage: React.FC = () => {
 
   // --- ดึงข้อมูลจาก backend จริง พร้อม search/filter/sort/pagination ---
   useEffect(() => {
-    if (!currentRequester) return;
+    if (!user) return;
 
     let cancelled = false;
     setLoading(true);
     setFetchError(null);
 
     const params: Record<string, string> = {
-      requesterId: currentRequester.id.toString(),
       sortBy,
       sortOrder,
       page: currentPage.toString(),
@@ -98,8 +97,11 @@ export const TicketListPage: React.FC = () => {
 
     const query = new URLSearchParams(params);
 
+    // Lab 3: no x-requester-id header — the session cookie is the only
+    // identity the server trusts (BR-03); credentials: "include" is
+    // required cross-origin or the cookie is silently omitted.
     fetch(`/api/tickets?${query.toString()}`, {
-      headers: { "x-requester-id": currentRequester.id.toString() },
+      credentials: "include",
     })
       .then(async (res) => {
         const body = await res.json().catch(() => null);
@@ -135,7 +137,7 @@ export const TicketListPage: React.FC = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    currentRequester,
+    user,
     search,
     categoryFilter,
     priorityFilter,

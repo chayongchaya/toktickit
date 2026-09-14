@@ -44,6 +44,14 @@ export interface Attachment {
   createdAt?: string;
 }
 
+// PublicComment as returned by GET/POST /api/tickets/:id/comments.
+export interface PublicComment {
+  id: number;
+  content: string;
+  createdAt: string;
+  author: { id: number; name: string; role: string };
+}
+
 export interface Ticket {
   id: number;
   ticketNumber: string;
@@ -54,6 +62,7 @@ export interface Ticket {
   currentStatus: string;
   createdAt: string;
   updatedAt: string;
+  problemAppearsResolved?: boolean;
   requesterId?: number;
   requester?: RequesterUser;
   categoryId?: number;
@@ -61,6 +70,7 @@ export interface Ticket {
   relatedSystemId?: number;
   relatedSystem?: RelatedSystem;
   attachments?: Attachment[];
+  publicComments?: PublicComment[];
 }
 
 export interface Pagination {
@@ -140,18 +150,8 @@ export async function getSystems(): Promise<RelatedSystem[]> {
   return handleResponse<RelatedSystem[]>(res, "Failed to fetch related systems.");
 }
 
-export async function getRequesters(): Promise<RequesterUser[]> {
-  const res = await fetch(`${API_URL}/api/requesters`);
-  return handleResponse<RequesterUser[]>(res, "Failed to fetch requesters.");
-}
-
-export async function getTickets(
-  requesterId: number,
-  params: TicketListParams = {}
-): Promise<TicketsResponse> {
-  const queryParams: Record<string, string> = {
-    requesterId: requesterId.toString(),
-  };
+export async function getTickets(params: TicketListParams = {}): Promise<TicketsResponse> {
+  const queryParams: Record<string, string> = {};
   if (params.search) queryParams.search = params.search;
   if (params.categoryId != null) queryParams.categoryId = String(params.categoryId);
   if (params.requestedPriority) queryParams.requestedPriority = params.requestedPriority;
@@ -162,68 +162,83 @@ export async function getTickets(
   if (params.pageSize != null) queryParams.pageSize = String(params.pageSize);
 
   const query = new URLSearchParams(queryParams);
+  // Lab 3: no requesterId param and no x-requester-id header — the session
+  // cookie (credentials: "include") is the only identity the server trusts
+  // (BR-03). The server derives "my tickets" from req.user.id.
   const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
-    headers: { "x-requester-id": requesterId.toString() },
+    credentials: CREDENTIALS,
   });
   return handleResponse<TicketsResponse>(res, "Failed to fetch tickets.");
 }
 
-export async function getTicketById(id: number | string, requesterId: number): Promise<Ticket> {
-  const res = await fetch(`${API_URL}/api/tickets/${id}`, {
-    headers: { "x-requester-id": requesterId.toString() },
-  });
+export async function getTicketById(id: number | string): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/tickets/${id}`, { credentials: CREDENTIALS });
   return handleResponse<Ticket>(res, "Failed to fetch ticket detail.");
 }
 
-export async function createTicket(
-  ticketData: CreateTicketInput,
-  requesterId: number
-): Promise<Ticket> {
+export async function createTicket(ticketData: CreateTicketInput): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-requester-id": requesterId.toString(),
-    },
-    body: JSON.stringify({ ...ticketData, requesterId }),
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(ticketData),
   });
   return handleResponse<Ticket>(res, "Failed to create ticket.");
 }
 
-export async function uploadAttachment(
-  ticketId: number | string,
-  file: File,
-  requesterId: number
-): Promise<Attachment> {
+export async function uploadAttachment(ticketId: number | string, file: File): Promise<Attachment> {
   const formData = new FormData();
   formData.append("file", file);
 
-  // Keep the existing FormData contract expected by the component test,
-  // while also sending the requester identity in the standard header.
-  formData.append("requesterId", String(requesterId));
-
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
     method: "POST",
-    headers: { "x-requester-id": requesterId.toString() },
+    credentials: CREDENTIALS,
     body: formData,
   });
   return handleResponse<Attachment>(res, `Failed to upload "${file.name}".`);
 }
 
-export async function deleteAttachment(
-  attachmentId: number,
-  removalReason: string,
-  requesterId: number
-): Promise<Attachment> {
+export async function deleteAttachment(attachmentId: number, removalReason: string): Promise<Attachment> {
   const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
     method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      "x-requester-id": requesterId.toString(),
-    },
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ removalReason }),
   });
   return handleResponse<Attachment>(res, "Failed to remove attachment.");
+}
+
+// --- Lab 3: Public Comments and the Requester's "problem appears resolved" flag ---
+
+export async function getPublicComments(ticketId: number | string): Promise<PublicComment[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/comments`, { credentials: CREDENTIALS });
+  return handleResponse<PublicComment[]>(res, "Failed to load comments.");
+}
+
+export async function postPublicComment(
+  ticketId: number | string,
+  content: string
+): Promise<PublicComment> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/comments`, {
+    method: "POST",
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  return handleResponse<PublicComment>(res, "Failed to post comment.");
+}
+
+export async function setProblemAppearsResolved(
+  ticketId: number | string,
+  problemAppearsResolved: boolean
+): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/resolved-flag`, {
+    method: "PATCH",
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ problemAppearsResolved }),
+  });
+  return handleResponse<Ticket>(res, "Failed to update ticket.");
 }
 
 // --- Lab 3: Authentication -------------------------------------------------
