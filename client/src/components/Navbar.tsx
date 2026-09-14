@@ -17,6 +17,8 @@ export const Navbar: React.FC = () => {
 
   const isMyTickets = location.pathname === "/tickets" || location.pathname.startsWith("/tickets/");
   const isCreateTicket = location.pathname === "/tickets/new";
+  const isQueue = location.pathname === "/queue" || location.pathname.startsWith("/queue/");
+  const canUseQueue = user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR";
 
   const handleLogout = async () => {
     setDropdownOpen(false);
@@ -44,6 +46,12 @@ export const Navbar: React.FC = () => {
           </Link>
 
           <div className="d-flex align-items-center gap-2">
+            {canUseQueue && (
+              <Link to="/queue" className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${isQueue ? "bg-black bg-opacity-25" : "opacity-75"}`} style={{ textDecoration: "none" }}>
+                <span>🎫</span> <span className="d-none d-sm-inline">My Queue</span>
+              </Link>
+            )}
+            {user?.role === "REQUESTER" && <>
             <Link
               to="/tickets"
               className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${
@@ -63,6 +71,8 @@ export const Navbar: React.FC = () => {
             >
               <span>➕</span> <span className="d-none d-sm-inline">Create Ticket</span>
             </Link>
+            </>}
+            {user?.role === "ADMINISTRATOR" && <Link to="/admin/users" className="nav-link text-white px-3 py-1 small fw-semibold opacity-75" style={{ textDecoration: "none" }}>⚙️ <span className="d-none d-sm-inline">Admin</span></Link>}
           </div>
         </div>
 
