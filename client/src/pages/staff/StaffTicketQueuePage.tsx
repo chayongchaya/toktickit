@@ -19,6 +19,10 @@ export function StaffTicketQueuePage() {
   const [sort, setSort] = useState<"createdAt" | "updatedAt" | "itPriority">("createdAt");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const owners = Array.from(new Map(tickets.map((ticket) => {
+    const row = ticket as Ticket & { ownerId?: number | null; ownerName?: string | null };
+    return row.ownerId && row.ownerName ? [row.ownerId, { id: row.ownerId, name: row.ownerName }] : [0, null];
+  }).filter((entry): entry is [number, { id: number; name: string }] => entry[0] !== 0)).values());
 
   useEffect(() => { getCategories().then(setCategories).catch(() => undefined); }, []);
   useEffect(() => {
@@ -43,7 +47,7 @@ export function StaffTicketQueuePage() {
       <div className="col-md-4 col-lg-2"><select className="form-select form-select-sm" aria-label="Category" value={category} onChange={resetPage(setCategory)}><option value="">All Categories</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
       <div className="col-md-4 col-lg-2"><select className="form-select form-select-sm" aria-label="Requested Priority" value={requestedPriority} onChange={resetPage(setRequestedPriority)}><option value="">Requested Priority</option>{["LOW", "MEDIUM", "HIGH"].map((p) => <option key={p}>{p}</option>)}</select></div>
       <div className="col-md-4 col-lg-2"><select className="form-select form-select-sm" aria-label="IT Priority" value={itPriority} onChange={resetPage(setItPriority)}><option value="">IT Priority</option>{["LOW", "MEDIUM", "HIGH"].map((p) => <option key={p}>{p}</option>)}</select></div>
-      <div className="col-md-4 col-lg-2"><select className="form-select form-select-sm" aria-label="Owner" value={owner} onChange={resetPage(setOwner)}><option value="">All Owners</option><option value="unassigned">Unassigned</option></select></div>
+      <div className="col-md-4 col-lg-2"><select className="form-select form-select-sm" aria-label="Owner" value={owner} onChange={resetPage(setOwner)}><option value="">All Owners</option>{owners.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}<option value="unassigned">Unassigned</option></select></div>
       <div className="col-md-4 col-lg-2"><select className="form-select form-select-sm" aria-label="Sort" value={sort} onChange={(e) => { setSort(e.target.value as typeof sort); setPagination((p) => ({ ...p, page: 1 })); }}><option value="createdAt">Newest</option><option value="updatedAt">Recently Updated</option><option value="itPriority">IT Priority</option></select></div>
     </div></div>
     {error && <div className="alert alert-danger" role="alert">{error}</div>}
