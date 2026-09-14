@@ -2,10 +2,50 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { TicketDetailPage } from "../../src/pages/TicketDetailPage";
-import { RequesterContext } from "../../src/context/RequesterContext";
 
 // Covers: AC-04 (attachment restrictions), AC-05 (soft removal + reason required,
 // blocked download), AC-12 (original filename display), section 4.5 attachment rules.
+//
+// Lab 3 (BR-32/BR-03, docs/lab-03/tests.md MIG-03): the Development Requester
+// selector and RequesterContext are removed, so this file mocks useAuth()
+// instead of wrapping the component in RequesterContext.Provider. The
+// download link and upload/delete requests no longer carry a requesterId
+// (query param, form field, or header) — the session cookie
+// (credentials: "include") is the only identity signal now (BR-03).
+
+const { mockUser } = vi.hoisted(() => ({
+  mockUser: {
+    id: 1,
+    name: "Jennifer Anderson",
+    email: "jennifer@example.com",
+    role: "REQUESTER",
+    mustChangePassword: false,
+  },
+}));
+
+vi.mock("../../src/context/AuthContext.js", () => ({
+  useAuth: () => ({
+    user: mockUser,
+    loading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    markPasswordChanged: vi.fn(),
+  }),
+}));
+
+
+// TicketDetailPage also fetches Public Comments via a separate endpoint
+// (GET /api/tickets/:id/comments). These attachment-focused tests don't
+// care about comments, so this helper always answers that call with an
+// empty array, keeping the ticket-detail mock focused on attachments.
+function withComments(fetchImpl: (url: string, init?: any) => Promise<any>) {
+  return vi.fn().mockImplementation((url: string, init?: any) => {
+    if (typeof url === "string" && url.includes("/comments")) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    }
+    return fetchImpl(url, init);
+  });
+}
 
 const mockRequester = {
   id: 1,
@@ -39,20 +79,11 @@ const baseTicket = {
 
 const renderComponent = () => {
   return render(
-    <RequesterContext.Provider
-      value={{
-        currentRequester: mockRequester,
-        setCurrentRequester: vi.fn(),
-        requesters: [mockRequester],
-        loading: false,
-      }}
-    >
-      <MemoryRouter initialEntries={["/tickets/1"]}>
-        <Routes>
-          <Route path="/tickets/:id" element={<TicketDetailPage />} />
-        </Routes>
-      </MemoryRouter>
-    </RequesterContext.Provider>
+    <MemoryRouter initialEntries={["/tickets/1"]}>
+      <Routes>
+        <Route path="/tickets/:id" element={<TicketDetailPage />} />
+      </Routes>
+    </MemoryRouter>
   );
 };
 
@@ -65,7 +96,7 @@ describe("Attachment Section (TicketDetailPage)", () => {
   });
 
   it("renders active attachments and shows the removal reason for soft-removed files", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(baseTicket) });
+    global.fetch = withComments(() => Promise.resolve({ ok: true, json: () => Promise.resolve(baseTicket) }));
 
     renderComponent();
 
@@ -91,9 +122,9 @@ describe("Attachment Section (TicketDetailPage)", () => {
         },
       ],
     };
-    global.fetch = vi
-      .fn()
-      .mockResolvedValue({ ok: true, json: () => Promise.resolve(ticketWithOriginalName) });
+    global.fetch = withComments(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(ticketWithOriginalName) })
+    );
 
     renderComponent();
 
@@ -103,27 +134,31 @@ describe("Attachment Section (TicketDetailPage)", () => {
     });
   });
 
-  it("gives the active attachment a download link that carries the requester id", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(baseTicket) });
+  it("gives the active attachment a working download link", async () => {
+    global.fetch = withComments(() => Promise.resolve({ ok: true, json: () => Promise.resolve(baseTicket) }));
 
     renderComponent();
 
     const downloadLink = await screen.findByRole("link", { name: /download/i });
-    expect(downloadLink).toHaveAttribute(
-      "href",
-      `/api/attachments/101/download?requesterId=${mockRequester.id}`
-    );
+    // BR-03: ownership is enforced server-side via the session cookie sent
+    // with the download request, not a client-supplied requesterId param.
+    expect(downloadLink).toHaveAttribute("href", "/api/attachments/101/download");
   });
 
-  it("uploads a valid file and refreshes the attachment list", async () => {
+  it("uploads a valid file with the session cookie and refreshes the attachment list", async () => {
     let uploadCalled = false;
+    let uploadInit: any = null;
     global.fetch = vi.fn().mockImplementation((url: string, init?: any) => {
       if (typeof url === "string" && url.includes("/attachments") && init?.method === "POST") {
         uploadCalled = true;
+        uploadInit = init;
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ id: 103, fileName: "new_photo.png", isRemoved: false }),
         });
+      }
+      if (typeof url === "string" && url.includes("/comments")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve(baseTicket) });
     });
@@ -137,15 +172,13 @@ describe("Attachment Section (TicketDetailPage)", () => {
 
     await waitFor(() => expect(uploadCalled).toBe(true));
 
-    const [, uploadInit] = (global.fetch as any).mock.calls.find(
-      ([callUrl, callInit]: any) => callUrl.includes("/attachments") && callInit?.method === "POST"
-    );
     expect(uploadInit.body).toBeInstanceOf(FormData);
-    expect((uploadInit.body as FormData).get("requesterId")).toBe(String(mockRequester.id));
+    expect((uploadInit.body as FormData).get("file")).not.toBeNull();
+    expect(uploadInit.credentials).toBe("include");
   });
 
   it("rejects a client-side invalid attachment (wrong type) without calling the API", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(baseTicket) });
+    global.fetch = withComments(() => Promise.resolve({ ok: true, json: () => Promise.resolve(baseTicket) }));
 
     renderComponent();
     await waitFor(() => expect(screen.getByText("screenshot_error.png")).toBeInTheDocument());
@@ -172,7 +205,7 @@ describe("Attachment Section (TicketDetailPage)", () => {
         isRemoved: false,
       })),
     };
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(fullTicket) });
+    global.fetch = withComments(() => Promise.resolve({ ok: true, json: () => Promise.resolve(fullTicket) }));
 
     renderComponent();
     await waitFor(() => expect(screen.getByText("file-0.png")).toBeInTheDocument());
@@ -186,10 +219,15 @@ describe("Attachment Section (TicketDetailPage)", () => {
 
   it("requires a removal reason before soft-removing an attachment via the confirmation modal", async () => {
     let deleteCalled = false;
+    let deleteInit: any = null;
     global.fetch = vi.fn().mockImplementation((url: string, init?: any) => {
       if (typeof url === "string" && url.includes("/api/attachments/101") && init?.method === "DELETE") {
         deleteCalled = true;
+        deleteInit = init;
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: 101, isRemoved: true }) });
+      }
+      if (typeof url === "string" && url.includes("/comments")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve(baseTicket) });
     });
@@ -219,32 +257,16 @@ describe("Attachment Section (TicketDetailPage)", () => {
 
     await waitFor(() => expect(deleteCalled).toBe(true));
 
-    const [, deleteInit] = (global.fetch as any).mock.calls.find(
-      ([callUrl, callInit]: any) => callUrl.includes("/api/attachments/101") && callInit?.method === "DELETE"
-    );
-
     const body = deleteInit?.body ? JSON.parse(deleteInit.body) : {};
     expect(body.removalReason).toBe("Uploaded incorrect file by mistake");
-
-    // ดึง requesterId จาก Header หรือ Body
-    const headers = deleteInit?.headers;
-    const headerRequesterId =
-      headers instanceof Headers
-        ? headers.get("x-requester-id")
-        : headers?.["x-requester-id"] || headers?.["X-Requester-Id"];
-
-    const actualRequesterId =
-      body.requesterId !== undefined
-        ? Number(body.requesterId)
-        : headerRequesterId !== undefined
-        ? Number(headerRequesterId)
-        : undefined;
-
-    expect(actualRequesterId).toBe(mockRequester.id);
+    // BR-03: ownership is derived from the session cookie, not a
+    // client-supplied requesterId (body field or header).
+    expect(body.requesterId).toBeUndefined();
+    expect(deleteInit.credentials).toBe("include");
   });
 
   it("does not render a download link for a soft-removed attachment", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(baseTicket) });
+    global.fetch = withComments(() => Promise.resolve({ ok: true, json: () => Promise.resolve(baseTicket) }));
 
     renderComponent();
     await waitFor(() => expect(screen.getByText("outdated_log.pdf")).toBeInTheDocument());

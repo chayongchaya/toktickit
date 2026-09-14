@@ -2,22 +2,48 @@ import { render, screen, within, waitFor, fireEvent } from "@testing-library/rea
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { TicketListPage } from "../../src/pages/TicketListPage";
-import { RequesterContext } from "../../src/context/RequesterContext";
 
-// Covers: AC-06 (search/filter/sort/pagination — now server-driven, not client-side
-// slicing), AC-03 (requester isolation, UI-side), section 4.3 (distinct empty vs
-// no-results states).
+// Covers: AC-06 (search/filter/sort/pagination — server-driven, not client-side
+// slicing), section 4.3 (distinct empty vs no-results states).
 //
-// NOTE: TicketListPage renders two parallel views of the same data — a desktop/tablet
-// <table> (`d-none d-md-block`) and a mobile card list (`d-md-none`, data-testid
-// "ticket-card-list"). jsdom does not evaluate CSS media queries, so both are present
-// in the DOM at once during tests even though only one is visible in a real browser.
-// These tests assert against the desktop table, so ticket-row assertions are scoped
-// with `within(tableView())` to avoid "multiple elements found" errors from the
-// duplicate card markup. Card-specific behavior belongs in a separate test file.
+// Lab 3 (BR-32/BR-03, docs/lab-03/tests.md MIG-03): the Development Requester
+// selector and RequesterContext are removed, so this file mocks useAuth()
+// instead of wrapping the component in RequesterContext.Provider. There is
+// no more x-requester-id header or requesterId query param — the session
+// cookie (credentials: "include") is the only identity signal the client
+// sends, and the server derives "my tickets" from the session. The old
+// "switch between two requesters" test is removed entirely: there is no
+// client-side requester-switching UI any more (BR-32 requires it be fully
+// removed), so that scenario cannot be exercised from this component.
+//
+// NOTE (unchanged from Lab 2): TicketListPage renders two parallel views of
+// the same data — a desktop/tablet <table> (`d-none d-md-block`) and a
+// mobile card list (`d-md-none`, data-testid "ticket-card-list"). jsdom does
+// not evaluate CSS media queries, so both are present in the DOM at once
+// during tests even though only one is visible in a real browser. These
+// tests assert against the desktop table, so ticket-row assertions are
+// scoped with `within(tableView())` to avoid "multiple elements found"
+// errors from the duplicate card markup.
 
-const requesterA = { id: 1, name: "Jennifer Anderson", email: "jennifer@example.com", isActive: true };
-const requesterB = { id: 2, name: "Michael Brown", email: "michael.brown@example.com", isActive: true };
+const { mockUser } = vi.hoisted(() => ({
+  mockUser: {
+    id: 1,
+    name: "Jennifer Anderson",
+    email: "jennifer@example.com",
+    role: "REQUESTER",
+    mustChangePassword: false,
+  },
+}));
+
+vi.mock("../../src/context/AuthContext.js", () => ({
+  useAuth: () => ({
+    user: mockUser,
+    loading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    markPasswordChanged: vi.fn(),
+  }),
+}));
 
 const mockCategories = [
   { id: 1, name: "Hardware" },
@@ -46,12 +72,6 @@ const secondTicket = {
   updatedAt: "2026-01-02T10:00:00.000Z",
 };
 
-/**
- * Minimal shape of what our fetch mocks need to satisfy — deliberately not
- * `Response`, since jsdom's fetch mock never needs to. We cast to `typeof fetch`
- * only at the point of assigning `global.fetch`, instead of fighting the real
- * (overloaded) fetch type signature throughout every mock body.
- */
 type MockFetchResult = {
   ok: boolean;
   json: () => Promise<any>;
@@ -66,13 +86,11 @@ function toUrlString(input: RequestInfo | URL): string {
 /**
  * Builds a fetch mock that behaves like the real backend for /api/tickets:
  * applies search/categoryId/requestedPriority/currentStatus/sortBy/sortOrder/page/pageSize
- * from the query string, and returns { data, pagination }.
- *
- * `source` can be a fixed array, or a function (requesterId) => array so tests
- * can simulate per-requester ownership.
+ * from the query string, and returns { data, pagination } for the session's
+ * own tickets (identity comes from the mocked session, not a client param).
  */
-function makeFetchMock(source: any[] | ((requesterId: string | null) => any[])) {
-  const impl = (input: RequestInfo | URL, init?: RequestInit): Promise<MockFetchResult> => {
+function makeFetchMock(source: any[]) {
+  const impl = (input: RequestInfo | URL): Promise<MockFetchResult> => {
     const url = toUrlString(input);
 
     if (url.includes("/api/categories")) {
@@ -81,10 +99,8 @@ function makeFetchMock(source: any[] | ((requesterId: string | null) => any[])) 
 
     const parsed = new URL(url, "http://localhost");
     const params = parsed.searchParams;
-    const headers = (init?.headers ?? {}) as Record<string, string>;
-    const headerRequesterId = headers["x-requester-id"] ?? null;
 
-    let rows = typeof source === "function" ? source(headerRequesterId) : [...source];
+    let rows = [...source];
 
     const search = params.get("search");
     if (search) {
@@ -127,26 +143,14 @@ function makeFetchMock(source: any[] | ((requesterId: string | null) => any[])) 
     });
   };
 
-  // Cast at the boundary: vi.fn()'s inferred type is narrower than the real
-  // (overloaded) `typeof fetch`, so we satisfy `global.fetch = ...` here once
-  // instead of typing every mock body against the full fetch signature.
   return vi.fn(impl) as unknown as typeof fetch;
 }
 
-const renderComponent = (requester = requesterA) => {
+const renderComponent = () => {
   return render(
-    <RequesterContext.Provider
-      value={{
-        currentRequester: requester,
-        setCurrentRequester: vi.fn(),
-        requesters: [requesterA, requesterB],
-        loading: false,
-      }}
-    >
-      <BrowserRouter>
-        <TicketListPage />
-      </BrowserRouter>
-    </RequesterContext.Provider>
+    <BrowserRouter>
+      <TicketListPage />
+    </BrowserRouter>
   );
 };
 
@@ -166,10 +170,10 @@ describe("TicketListPage (My Tickets) Component", () => {
     vi.clearAllMocks();
   });
 
-  it("requests the ticket list scoped to the current requester via the x-requester-id header", async () => {
+  it("requests the ticket list using the session cookie, with no client-supplied requester id", async () => {
     global.fetch = makeFetchMock([oneTicket]);
 
-    renderComponent(requesterA);
+    renderComponent();
 
     await waitFor(() => {
       expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument();
@@ -178,8 +182,11 @@ describe("TicketListPage (My Tickets) Component", () => {
     const call = lastTicketsCall(global.fetch);
     const url = toUrlString(call[0]);
     const init = call[1];
-    expect(url).toContain(`requesterId=${requesterA.id}`);
-    expect(init.headers["x-requester-id"]).toBe(String(requesterA.id));
+    // BR-03: identity comes from the session cookie only — no requesterId
+    // query param and no x-requester-id header exist any more.
+    expect(url).not.toContain("requesterId=");
+    expect(init.headers?.["x-requester-id"]).toBeUndefined();
+    expect(init.credentials).toBe("include");
   });
 
   it("sends page and pageSize to the backend instead of slicing tickets on the client", async () => {
@@ -194,7 +201,7 @@ describe("TicketListPage (My Tickets) Component", () => {
     expect(url).toContain("pageSize=8");
   });
 
-  it("displays the ticket belonging to the current requester", async () => {
+  it("displays the tickets belonging to the authenticated session", async () => {
     global.fetch = makeFetchMock([oneTicket]);
 
     renderComponent();
@@ -286,47 +293,6 @@ describe("TicketListPage (My Tickets) Component", () => {
     expect(url).toContain("categoryId=2");
   });
 
-  it("re-fetches and no longer shows Requester A's tickets after switching to Requester B", async () => {
-    global.fetch = makeFetchMock((requesterId) => (requesterId === String(requesterA.id) ? [oneTicket] : []));
-
-    const { rerender } = render(
-      <RequesterContext.Provider
-        value={{
-          currentRequester: requesterA,
-          setCurrentRequester: vi.fn(),
-          requesters: [requesterA, requesterB],
-          loading: false,
-        }}
-      >
-        <BrowserRouter>
-          <TicketListPage />
-        </BrowserRouter>
-      </RequesterContext.Provider>
-    );
-
-    await waitFor(() => expect(within(tableView()).getByText("TKT-2026-000001")).toBeInTheDocument());
-
-    rerender(
-      <RequesterContext.Provider
-        value={{
-          currentRequester: requesterB,
-          setCurrentRequester: vi.fn(),
-          requesters: [requesterA, requesterB],
-          loading: false,
-        }}
-      >
-        <BrowserRouter>
-          <TicketListPage />
-        </BrowserRouter>
-      </RequesterContext.Provider>
-    );
-
-    await waitFor(() => {
-      expect(within(tableView()).queryByText("TKT-2026-000001")).not.toBeInTheDocument();
-      expect(within(tableView()).getByText(/No tickets found for this requester\./i)).toBeInTheDocument();
-    });
-  });
-
   it("sends sortBy/sortOrder to the backend and toggles direction when a sortable header is clicked", async () => {
     global.fetch = makeFetchMock([oneTicket]);
 
@@ -401,7 +367,7 @@ describe("TicketListPage (My Tickets) Component", () => {
     });
   });
 
-  it("does not render a Ticket Owner column (out of scope for Lab 2)", async () => {
+  it("does not render a Ticket Owner column (out of scope for the Requester's own view)", async () => {
     global.fetch = makeFetchMock([oneTicket]);
 
     renderComponent();

@@ -2,35 +2,45 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { CreateTicketPage } from "../../src/pages/CreateTicketPage";
-import { RequesterContext } from "../../src/context/RequesterContext";
 
 // Covers: AC-01 (create ticket + system-generated number), section 4.5 (attachment
 // rules), section 8.3 (busy submit button, validation placement).
+//
+// Lab 3 (BR-32/BR-03, docs/lab-03/tests.md MIG-03): the Development Requester
+// selector and RequesterContext are removed. The acting Requester now comes
+// from the authenticated session, so this file mocks useAuth() instead of
+// wrapping the component in RequesterContext.Provider. The client no longer
+// sends a requesterId on ticket creation (BR-03: the server derives it from
+// the session) — this file no longer asserts one is sent.
 
-const mockRequester = {
-  id: 1,
-  name: "Jennifer Anderson",
-  email: "jennifer@example.com",
-  isActive: true,
-};
+const { mockUser } = vi.hoisted(() => ({
+  mockUser: {
+    id: 1,
+    name: "Jennifer Anderson",
+    email: "jennifer@example.com",
+    role: "REQUESTER",
+    mustChangePassword: false,
+  },
+}));
+
+vi.mock("../../src/context/AuthContext.js", () => ({
+  useAuth: () => ({
+    user: mockUser,
+    loading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    markPasswordChanged: vi.fn(),
+  }),
+}));
 
 const mockCategories = [{ id: 1, name: "Hardware", isActive: true }];
 const mockSystems = [{ id: 1, name: "Corporate Laptop", isActive: true }];
 
 const renderComponent = () => {
   return render(
-    <RequesterContext.Provider
-      value={{
-        currentRequester: mockRequester,
-        setCurrentRequester: vi.fn(),
-        requesters: [mockRequester],
-        loading: false,
-      }}
-    >
-      <BrowserRouter>
-        <CreateTicketPage />
-      </BrowserRouter>
-    </RequesterContext.Provider>
+    <BrowserRouter>
+      <CreateTicketPage />
+    </BrowserRouter>
   );
 };
 
@@ -183,11 +193,12 @@ describe("CreateTicketPage Component", () => {
     await waitFor(() => {});
   });
 
-  it("submits valid data and posts the requester id and trimmed field values", async () => {
+  it("submits valid data with the session cookie, without a client-supplied requesterId", async () => {
     renderComponent();
     await waitFor(() => expect(screen.getByRole("option", { name: "Hardware" })).toBeInTheDocument());
 
     let capturedBody: any = null;
+    let capturedInit: any = null;
     global.fetch = vi.fn().mockImplementation((url: string, init?: any) => {
       if (typeof url === "string" && url.includes("/api/categories")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(mockCategories) });
@@ -196,6 +207,7 @@ describe("CreateTicketPage Component", () => {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSystems) });
       }
       if (typeof url === "string" && url.includes("/api/tickets") && init?.method === "POST") {
+        capturedInit = init;
         if (init.body) {
           capturedBody = typeof init.body === "string" ? JSON.parse(init.body) : init.body;
         }
@@ -221,9 +233,12 @@ describe("CreateTicketPage Component", () => {
     await waitFor(() => expect(capturedBody).not.toBeNull());
     expect(capturedBody.summary).toBe("Cannot access VPN");
     expect(capturedBody.description).toBe("Timeout when connecting to VPN from home network.");
-    expect(capturedBody.requesterId).toBe(mockRequester.id);
     expect(Number(capturedBody.categoryId)).toBe(1);
     expect(Number(capturedBody.relatedSystemId ?? capturedBody.systemId)).toBe(1);
+    // BR-03: the authenticated session determines ownership, not a
+    // client-supplied field, so no requesterId is ever sent.
+    expect(capturedBody.requesterId).toBeUndefined();
+    expect(capturedInit.credentials).toBe("include");
   });
 
   it("shows a safe error banner and preserves form values when the backend rejects the submission", async () => {
