@@ -19,12 +19,10 @@ describe("ChangePasswordPage", () => {
     fireEvent.change(screen.getByLabelText("Current (temporary) password"), { target: { value: "TempPass1!" } });
     fireEvent.change(screen.getByLabelText("New password"), { target: { value: "weak" } });
     fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "different" } });
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("Please meet all password requirements below.");
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("New password"), { target: { value: "ValidPass1!" } });
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("Passwords do not match.");
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   });
 
   it("submits a valid change and handles a server validation error", async () => {

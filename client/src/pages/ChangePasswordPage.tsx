@@ -147,7 +147,7 @@ export const ChangePasswordPage: React.FC = () => {
             type="submit"
             className="btn text-white w-100 fw-semibold mb-2"
             style={{ backgroundColor: "#006B3C" }}
-            disabled={submitting}
+            disabled={submitting || !policyPassed || !confirmMatches}
           >
             {submitting ? "Saving…" : "Continue"}
           </button>

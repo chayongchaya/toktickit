@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginPage } from "../../src/pages/LoginPage.js";
@@ -24,4 +24,18 @@ describe("LoginPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
     await waitFor(() => expect(login).toHaveBeenCalledWith("jennifer@example.com", "ValidPass1!"));
   });
+
+  it("shows the busy state while authentication is pending", async () => {
+    let resolveLogin!: (value: unknown) => void;
+    login.mockReturnValue(new Promise((resolve) => { resolveLogin = resolve; }));
+    render(<BrowserRouter><LoginPage /></BrowserRouter>);
+    fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "jennifer@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "ValidPass1!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
+    expect(screen.getByRole("button", { name: /Signing in/ })).toBeDisabled();
+    await act(async () => {
+      resolveLogin({ id: 1, name: "Jennifer", email: "jennifer@example.com", role: "REQUESTER", mustChangePassword: false });
+    });
+  });
+
 });

@@ -37,7 +37,10 @@ export const LoginPage: React.FC = () => {
       // BR-01/AC-05: identical copy for wrong password and inactive
       // account — the server already collapses both into one message, so
       // we simply display whatever it sent rather than re-branching here.
-      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      const apiMessage = err instanceof ApiError || (typeof err === "object" && err !== null && "status" in err)
+        ? (err as { message?: string }).message
+        : undefined;
+      setError(apiMessage ?? "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }

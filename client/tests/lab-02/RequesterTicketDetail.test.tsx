@@ -160,4 +160,15 @@ describe("Requester Ticket Detail (view mode)", () => {
 
     expect(await screen.findByText(/Ticket not found/i)).toBeInTheDocument();
   });
+
+  it("shows a safe generic failure for a server error without leaking details", async () => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/comments")) return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ error: "database details must not leak" }) });
+    });
+
+    renderComponent("999");
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Unable to load ticket details."));
+    expect(screen.queryByText("database details must not leak")).not.toBeInTheDocument();
+  });
 });
