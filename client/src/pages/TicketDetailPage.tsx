@@ -82,7 +82,13 @@ export const TicketDetailPage: React.FC = () => {
     } catch (err) {
       if (!isActive()) return;
 
-      setError(err instanceof ApiError && err.status === 404 ? "Ticket not found" : "Unable to load ticket details.");
+      setError(
+        err instanceof ApiError && err.status === 404
+          ? "Ticket not found"
+          : err instanceof ApiError && err.status === 403
+            ? "You are not allowed to view this ticket."
+            : "Unable to load ticket details.",
+      );
       setTicket(null);
     } finally {
       if (isActive()) {

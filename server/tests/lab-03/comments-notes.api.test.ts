@@ -8,7 +8,7 @@ const prisma = getPrisma();
 
 describe("Lab 3 comments and internal notes", () => {
   it("API-30: requester can set the resolved flag without changing ticket status", async () => {
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
     const ticket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
     const originalStatus = ticket.currentStatus;
@@ -29,7 +29,7 @@ describe("Lab 3 comments and internal notes", () => {
 
   it("lets staff post a public comment visible to the requester", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const ticket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
     const content = `staff comment ${Date.now()}`;
     const created = await request(app).post(`/api/tickets/${ticket.id}/comments`).set("Cookie", await loginAs(app, staff.email)).send({ content, authorId: requester.id, createdAt: "2000-01-01T00:00:00.000Z" });
@@ -42,7 +42,7 @@ describe("Lab 3 comments and internal notes", () => {
   });
 
   it("lets a Requester post a comment visible from both requester and staff views", async () => {
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
     const ticket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
     const content = `requester comment ${Date.now()}`;
@@ -56,7 +56,7 @@ describe("Lab 3 comments and internal notes", () => {
 
   it("keeps a staff public comment and internal note separate on the requester view", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const ticket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
     const cookie = await loginAs(app, staff.email);
     const publicContent = `paired public ${Date.now()}`;

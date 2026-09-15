@@ -161,6 +161,19 @@ describe("Requester Ticket Detail (view mode)", () => {
     expect(await screen.findByText(/Ticket not found/i)).toBeInTheDocument();
   });
 
+  it("shows a safe forbidden message for a direct 403 response", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: () => Promise.resolve({ error: "forbidden details must not leak" }),
+    });
+
+    renderComponent("123");
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("You are not allowed to view this ticket."));
+    expect(screen.queryByText("forbidden details must not leak")).not.toBeInTheDocument();
+  });
+
   it("shows a safe generic failure for a server error without leaking details", async () => {
     global.fetch = vi.fn().mockImplementation((url: string) => {
       if (url.includes("/comments")) return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });

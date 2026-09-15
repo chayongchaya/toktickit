@@ -18,7 +18,7 @@ describe("Attachment Lifecycle & Ownership API", () => {
     // Lab 3: RequesterUser -> User; role filter needed since User now also
     // holds IT Staff/Administrator rows.
     const users = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     userAId = users[0].id;
@@ -111,7 +111,7 @@ describe("POST /api/tickets/:id/attachments (real upload path)", () => {
 
   beforeEach(async () => {
     const [active, other] = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     activeRequesterId = active.id;

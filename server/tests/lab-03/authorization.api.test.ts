@@ -8,7 +8,7 @@ const prisma = getPrisma();
 
 describe("Cross-cutting Authorization (tests.md API-08 to API-13)", () => {
   it("API-08 (AC-25): a Requester cannot call staff or admin endpoints", async () => {
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } } });
     const cookie = await loginAs(app, requester.email);
     expect((await request(app).get("/api/staff/tickets").set("Cookie", cookie)).status).toBe(403);
     expect((await request(app).get("/api/admin/users").set("Cookie", cookie)).status).toBe(403);
@@ -22,7 +22,7 @@ describe("Cross-cutting Authorization (tests.md API-08 to API-13)", () => {
 
   it("API-10 (AC-03): a client-supplied requesterId in the create-ticket body is ignored; the authenticated identity is used instead", async () => {
     const [me, someoneElse] = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     const cookie = await loginAs(app, me.email);
@@ -50,7 +50,7 @@ describe("Cross-cutting Authorization (tests.md API-08 to API-13)", () => {
 
   it("API-10 (AC-03): a client-supplied authorId on a Public Comment is ignored; the authenticated identity is used instead", async () => {
     const [me, someoneElse] = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     const cookie = await loginAs(app, me.email);
@@ -82,7 +82,7 @@ describe("Cross-cutting Authorization (tests.md API-08 to API-13)", () => {
   });
 
   it("API-11 (AC-04, BR-22): a Requester cannot access Internal Notes and receives no note data", async () => {
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } } });
     const ticket = await prisma.ticket.findFirstOrThrow();
     const cookie = await loginAs(app, requester.email);
     const getResponse = await request(app).get(`/api/staff/tickets/${ticket.id}/notes`).set("Cookie", cookie);
@@ -97,7 +97,7 @@ describe("Cross-cutting Authorization (tests.md API-08 to API-13)", () => {
 
   it("API-12 (AC-28): a Requester requesting an attachment on a ticket they don't own gets 404, not 403 (existence-hiding)", async () => {
     const [owner, other] = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     const otherCookie = await loginAs(app, other.email);
@@ -132,7 +132,7 @@ describe("Cross-cutting Authorization (tests.md API-08 to API-13)", () => {
 
   it("API-13 (FR-07): the same 'not your ticket' failure reason returns an identical status code across three different endpoints", async () => {
     const [owner, other] = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     const otherCookie = await loginAs(app, other.email);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
@@ -147,6 +147,10 @@ describe("POST /api/auth/change-password and the mandatory-change gate", () => {
         passwordHash: await hashPassword(TEMP_PASSWORD),
       },
     });
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({ where: { email } });
   });
 
   it("FR-05: a user who must change their password is blocked from a normal protected route", async () => {

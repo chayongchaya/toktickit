@@ -17,7 +17,7 @@ describe("My Tickets API (Filtering, Sorting, Pagination & Isolation)", () => {
     // this test still picks two Requesters specifically, not whichever two
     // active users happen to come back first.
     const users = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     userAId = users[0].id;
