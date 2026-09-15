@@ -7,6 +7,26 @@ import { loginAs } from "../helpers/auth.js";
 const prisma = getPrisma();
 
 describe("Lab 3 comments and internal notes", () => {
+  it("API-30: requester can set the resolved flag without changing ticket status", async () => {
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
+    const ticket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
+    const originalStatus = ticket.currentStatus;
+    const response = await request(app)
+      .patch(`/api/tickets/${ticket.id}/resolved-flag`)
+      .set("Cookie", await loginAs(app, requester.email))
+      .send({ problemAppearsResolved: true });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(expect.objectContaining({ id: ticket.id, problemAppearsResolved: true, currentStatus: originalStatus }));
+
+    const staffDetail = await request(app)
+      .get(`/api/staff/tickets/${ticket.id}`)
+      .set("Cookie", await loginAs(app, staff.email));
+    expect(staffDetail.status).toBe(200);
+    expect(staffDetail.body).toEqual(expect.objectContaining({ problemAppearsResolved: true, currentStatus: originalStatus }));
+  });
+
   it("lets staff post a public comment visible to the requester", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
     const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });

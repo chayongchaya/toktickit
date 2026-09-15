@@ -6,22 +6,19 @@ import { loginAs } from "../helpers/auth.js";
 
 const prisma = getPrisma();
 
-// This file implements tests.md's API-08 through API-13. Three of those
-// (API-08, API-09, API-11) depend on routes that don't exist until
-// feature/lab3-staff-queue, feature/lab3-admin-users, and
-// feature/lab3-staff-ticket-detail land -- they are left as honest
-// it.todo() stubs rather than deleted, so tests.md's "Planned" status for
-// this file stays traceable to what's actually implemented so far, not
-// silently dropped.
-
 describe("Cross-cutting Authorization (tests.md API-08 to API-13)", () => {
-  it.todo(
-    "API-08 (AC-25): a Requester session calling GET /api/staff/tickets and GET /api/admin/users gets 403 for both -- needs feature/lab3-staff-queue and feature/lab3-admin-users"
-  );
+  it("API-08 (AC-25): a Requester cannot call staff or admin endpoints", async () => {
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const cookie = await loginAs(app, requester.email);
+    expect((await request(app).get("/api/staff/tickets").set("Cookie", cookie)).status).toBe(403);
+    expect((await request(app).get("/api/admin/users").set("Cookie", cookie)).status).toBe(403);
+  });
 
-  it.todo(
-    "API-09 (AC-26): an IT Staff session calling any /api/admin/* endpoint gets 403 -- needs feature/lab3-admin-users"
-  );
+  it("API-09 (AC-26): IT Staff cannot call admin endpoints", async () => {
+    const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
+    const cookie = await loginAs(app, staff.email);
+    expect((await request(app).get("/api/admin/users").set("Cookie", cookie)).status).toBe(403);
+  });
 
   it("API-10 (AC-03): a client-supplied requesterId in the create-ticket body is ignored; the authenticated identity is used instead", async () => {
     const [me, someoneElse] = await prisma.user.findMany({
