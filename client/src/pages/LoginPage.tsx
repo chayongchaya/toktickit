@@ -29,14 +29,9 @@ export const LoginPage: React.FC = () => {
       if (user.mustChangePassword) {
         navigate("/change-password", { replace: true });
       } else {
-        // NOTE: role-based redirect targets (/queue for IT Staff and
-        // Administrator, /admin/users for Administrator) are intentionally
-        // NOT wired up yet — those routes don't exist until
-        // feature/lab3-staff-queue and feature/lab3-admin-users land. Until
-        // then every role lands on /tickets after login; a non-Requester
-        // account can still fully exercise login/logout/change-password
-        // here, it just has nowhere else to go yet in this branch.
-        navigate(location.state?.from ?? "/tickets", { replace: true });
+        // Send each role to its first available workspace after authentication.
+        const roleHome = user.role === "ADMINISTRATOR" ? "/admin/users" : user.role === "IT_STAFF" ? "/queue" : "/tickets";
+        navigate(location.state?.from ?? roleHome, { replace: true });
       }
     } catch (err) {
       // BR-01/AC-05: identical copy for wrong password and inactive
@@ -60,7 +55,7 @@ export const LoginPage: React.FC = () => {
             style={{ backgroundColor: "#006B3C" }}
           >
             <span style={{ fontSize: "1.1rem" }}>⏱</span>
-            <span>TikTockIT</span>
+            <span>TokTickIT</span>
           </div>
         </div>
 
