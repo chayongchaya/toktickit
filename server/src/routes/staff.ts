@@ -159,7 +159,7 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
     ]);
 
     return res.json({
-      data: tickets.map((ticket) => ({
+      data: tickets.map((ticket: (typeof tickets)[number]) => ({
         ...ticket,
         ownerId: ticket.ownerId,
         ownerName: ticket.owner?.name ?? null,
