@@ -21,7 +21,7 @@ describe("StaffTicketDetailPage", () => {
     expect(screen.getByLabelText("IT Priority")).toBeInTheDocument();
     expect(screen.getByLabelText("Current Status")).toBeInTheDocument();
     expect(screen.getByText("Corporate Laptop")).toBeInTheDocument();
-    expect(screen.getAllByText("HIGH").find((element) => element.tagName === "SPAN")).toHaveStyle({ backgroundColor: "#F8B4B4", color: "#9B1C1C" });
+    expect(screen.getAllByText("HIGH").find((element) => element.tagName === "SPAN")).toHaveStyle({ backgroundColor: "#FDE8E8", color: "#9B1C1C", border: "1px solid #F8B4B4" });
     expect(screen.getByText("IN PROGRESS")).toHaveStyle({ backgroundColor: "#FEF3C7", color: "#92400E" });
     expect(screen.getByText("🔒 Internal Notes")).toBeInTheDocument();
   });
@@ -41,7 +41,7 @@ describe("StaffTicketDetailPage", () => {
       { id: 3, fileName: "missing.pdf", originalFileName: "missing.pdf", fileSize: 512, isRemoved: false, isUnavailable: true },
     ] });
     renderPage();
-    await waitFor(() => expect(screen.getByRole("tab", { name: /Attachments/ })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Attachments (2)" })).toBeInTheDocument());
     fireEvent.click(screen.getByRole("tab", { name: /Attachments/ }));
     expect(screen.getByText("evidence.pdf")).toBeInTheDocument();
     expect(screen.getByText("old-screenshot.png")).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe("StaffTicketDetailPage", () => {
   it("renders the detail loading state", () => {
     getStaffTicket.mockReturnValue(new Promise(() => undefined));
     renderPage();
-    expect(screen.getByText("Loading ticket detail...")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading ticket detail" })).toBeInTheDocument();
   });
 
   it("calls owner, priority, and status operations and shows success feedback", async () => {
@@ -90,6 +90,7 @@ describe("StaffTicketDetailPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Post Comment" }));
     await waitFor(() => expect(postPublicComment).toHaveBeenCalledWith("1", "Public update"));
     expect(screen.getByText("Public update")).toBeInTheDocument();
+    expect(screen.getByText("IT Staff")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: /Internal Notes/ }));
     fireEvent.change(screen.getByLabelText("Add Internal Note"), { target: { value: "Private handoff" } });
