@@ -21,6 +21,33 @@ describe("Lab 3 comments and internal notes", () => {
     expect(visible.body.some((comment: { content: string }) => comment.content === content)).toBe(true);
   });
 
+  it("lets a Requester post a comment visible from both requester and staff views", async () => {
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
+    const ticket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
+    const content = `requester comment ${Date.now()}`;
+    const created = await request(app).post(`/api/tickets/${ticket.id}/comments`).set("Cookie", await loginAs(app, requester.email)).send({ content });
+    expect(created.status).toBe(201);
+    const requesterDetail = await request(app).get(`/api/tickets/${ticket.id}`).set("Cookie", await loginAs(app, requester.email));
+    const staffDetail = await request(app).get(`/api/staff/tickets/${ticket.id}`).set("Cookie", await loginAs(app, staff.email));
+    expect(requesterDetail.body.publicComments.some((comment: { content: string }) => comment.content === content)).toBe(true);
+    expect(staffDetail.body.publicComments.some((comment: { content: string }) => comment.content === content)).toBe(true);
+  });
+
+  it("keeps a staff public comment and internal note separate on the requester view", async () => {
+    const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const ticket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
+    const cookie = await loginAs(app, staff.email);
+    const publicContent = `paired public ${Date.now()}`;
+    const noteContent = `paired private ${Date.now()}`;
+    expect((await request(app).post(`/api/tickets/${ticket.id}/comments`).set("Cookie", cookie).send({ content: publicContent })).status).toBe(201);
+    expect((await request(app).post(`/api/staff/tickets/${ticket.id}/notes`).set("Cookie", cookie).send({ content: noteContent })).status).toBe(201);
+    const requesterView = await request(app).get(`/api/tickets/${ticket.id}`).set("Cookie", await loginAs(app, requester.email));
+    expect(JSON.stringify(requesterView.body)).toContain(publicContent);
+    expect(JSON.stringify(requesterView.body)).not.toContain(noteContent);
+  });
+
   it("rejects empty and overlong comments or notes", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
     const ticket = await prisma.ticket.findFirstOrThrow();

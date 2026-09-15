@@ -40,6 +40,7 @@ export interface Attachment {
   fileSize: number;
   mimeType?: string;
   isRemoved: boolean;
+  isUnavailable?: boolean;
   removalReason?: string | null;
   createdAt?: string;
 }

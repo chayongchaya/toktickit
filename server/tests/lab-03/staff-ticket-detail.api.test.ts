@@ -28,6 +28,48 @@ describe("IT Staff ticket detail and operations", () => {
     await prisma.ticket.update({ where: { id: ticket.id }, data: { ownerId: null } });
   });
 
+  it("allows a different active staff member to reassign an owned ticket and rejects inactive owners", async () => {
+    const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
+    const otherStaff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true, id: { not: staff.id } } });
+    const inactive = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: false } });
+    const ticket = await prisma.ticket.findFirstOrThrow({ where: { ownerId: { not: null } } });
+    const originalOwner = ticket.ownerId;
+    const cookie = await loginAs(app, staff.email);
+    const reassigned = await request(app).patch(`/api/staff/tickets/${ticket.id}/owner`).set("Cookie", cookie).send({ ownerId: otherStaff.id });
+    expect(reassigned.status).toBe(200);
+    expect(reassigned.body.ownerId).toBe(otherStaff.id);
+    const rejected = await request(app).patch(`/api/staff/tickets/${ticket.id}/owner`).set("Cookie", cookie).send({ ownerId: inactive.id });
+    expect(rejected.status).toBe(409);
+    expect((await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } })).ownerId).toBe(otherStaff.id);
+    await prisma.ticket.update({ where: { id: ticket.id }, data: { ownerId: originalOwner } });
+  });
+
+  it("returns full detail for a ticket owned by another staff member", async () => {
+    const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
+    const ticket = await prisma.ticket.findFirstOrThrow({ where: { ownerId: { not: null } } });
+    const response = await request(app).get(`/api/staff/tickets/${ticket.id}`).set("Cookie", await loginAs(app, staff.email));
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(expect.objectContaining({ id: ticket.id, ownerId: expect.any(Number), requester: expect.any(Object), attachments: expect.any(Array) }));
+  });
+
+  it("allows an Administrator to claim, reprioritize, and transition a ticket", async () => {
+    const admin = await prisma.user.findFirstOrThrow({ where: { role: "ADMINISTRATOR", isActive: true } });
+    const ticket = await prisma.ticket.findFirstOrThrow({ where: { ownerId: null, currentStatus: "NEW" } });
+    const originalPriority = ticket.itPriority;
+    const cookie = await loginAs(app, admin.email);
+    expect((await request(app).patch(`/api/staff/tickets/${ticket.id}/owner`).set("Cookie", cookie).send({ ownerId: admin.id })).status).toBe(200);
+    expect((await request(app).patch(`/api/staff/tickets/${ticket.id}/priority`).set("Cookie", cookie).send({ itPriority: "HIGH" })).status).toBe(200);
+    expect((await request(app).patch(`/api/staff/tickets/${ticket.id}/status`).set("Cookie", cookie).send({ currentStatus: "OPEN" })).status).toBe(200);
+    await prisma.ticket.update({ where: { id: ticket.id }, data: { ownerId: null, itPriority: originalPriority, currentStatus: "NEW" } });
+  });
+
+  it("rejects a Requester attempting to change status directly", async () => {
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const ticket = await prisma.ticket.findFirstOrThrow();
+    const response = await request(app).patch(`/api/staff/tickets/${ticket.id}/status`).set("Cookie", await loginAs(app, requester.email)).send({ currentStatus: "OPEN" });
+    expect(response.status).toBe(403);
+  });
+
   it("updates IT priority without changing requested priority", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
     const ticket = await prisma.ticket.findFirstOrThrow();
