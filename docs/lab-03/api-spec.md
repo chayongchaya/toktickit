@@ -176,6 +176,9 @@ row including `ownerId`, `ownerName` (denormalized for the table, avoiding an N+
 No ownership restriction (FR-14 — the queue is shared). Returns the full ticket including
 `publicComments` and `internalNotes` (the latter present here specifically because this route is
 staff-only at both the router-mount layer and re-checked in the handler, per `specification.md` §8).
+- Each attachment includes `isUnavailable: boolean`, which is `true` when an active attachment's
+  stored file is missing from disk. Removed attachments always report `false`; the server never
+  exposes the internal `storagePath` field.
 - **404** only for a genuinely nonexistent id (no ownership-based 404 branch exists on this route, since
   there is no ownership restriction to hide).
 
