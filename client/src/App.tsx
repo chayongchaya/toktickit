@@ -8,6 +8,7 @@ import { ChangePasswordPage } from "./pages/ChangePasswordPage.js";
 import { CreateTicketPage } from "./pages/CreateTicketPage.js";
 import { TicketListPage } from "./pages/TicketListPage.js";
 import { TicketDetailPage } from "./pages/TicketDetailPage.js";
+import { StaffTicketQueuePage } from "./pages/staff/StaffTicketQueuePage.js";
 
 type UiState = "idle" | "loading" | "success" | "error";
 
@@ -95,6 +96,14 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function StaffOnlyLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user || (user.role !== "IT_STAFF" && user.role !== "ADMINISTRATOR")) {
+    return <Navigate to={user ? "/tickets" : "/login"} replace />;
+  }
+  return <ProtectedLayout>{children}</ProtectedLayout>;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -130,6 +139,7 @@ export default function App() {
               </ProtectedLayout>
             }
           />
+          <Route path="/queue" element={<StaffOnlyLayout><StaffTicketQueuePage /></StaffOnlyLayout>} />
 
           {/* Catch-all Route: ต้องอยู่บรรทัดสุดท้าย */}
           <Route path="*" element={<Navigate to="/login" replace />} />

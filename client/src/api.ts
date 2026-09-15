@@ -85,6 +85,33 @@ export interface TicketsResponse {
   pagination: Pagination;
 }
 
+export interface StaffTicketListParams {
+  search?: string;
+  status?: string;
+  category?: number | string;
+  requestedPriority?: string;
+  itPriority?: string;
+  owner?: number | string;
+  sort?: "createdAt" | "updatedAt" | "itPriority";
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export async function getStaffOwners(): Promise<RequesterUser[]> {
+  const res = await fetch(`${API_URL}/api/staff/owners`, { credentials: CREDENTIALS });
+  return handleResponse<RequesterUser[]>(res, "Failed to load ticket owners.");
+}
+
+export async function getStaffTickets(params: StaffTicketListParams = {}): Promise<TicketsResponse> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  });
+  const res = await fetch(`${API_URL}/api/staff/tickets?${query.toString()}`, { credentials: CREDENTIALS });
+  return handleResponse<TicketsResponse>(res, "Failed to load staff ticket queue.");
+}
+
 export interface SystemStatus {
   online: boolean;
   categories: Category[];

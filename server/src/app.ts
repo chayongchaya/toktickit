@@ -5,7 +5,10 @@ import { getPrisma } from "./prisma.js";
 import systemRoutes from "./routes/systems.js";
 import { ticketsRouter, attachmentsRouter } from "./routes/tickets.js";
 import { authRouter } from "./routes/auth.js";
+import { staffRouter } from "./routes/staff.js";
 import { attachSession, requireAuth, blockIfMustChangePassword } from "./middleware/auth.js";
+import { requireRole } from "./middleware/auth.js";
+import { Role } from "@prisma/client";
 
 export const app = express();
 
@@ -93,5 +96,6 @@ app.use("/api", systemRoutes);
 // have both been removed from every handler in that file.
 app.use("/api/tickets", requireAuth, blockIfMustChangePassword, ticketsRouter);
 app.use("/api/attachments", requireAuth, blockIfMustChangePassword, attachmentsRouter);
+app.use("/api/staff", requireAuth, blockIfMustChangePassword, requireRole(Role.IT_STAFF, Role.ADMINISTRATOR), staffRouter);
 
 export default app;
