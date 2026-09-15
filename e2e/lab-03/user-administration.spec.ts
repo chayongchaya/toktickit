@@ -13,6 +13,11 @@ async function signInAsAdmin(page: import("@playwright/test").Page) {
 }
 
 test.describe("Administrator user management", () => {
+  test.describe.configure({ mode: "serial" });
+  test.beforeEach(({ }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "User-management mutation flow runs once; responsive coverage is tracked by RESP-01.");
+  });
+
   test("searches, creates, and rejects a duplicate email", async ({ page }) => {
     await signInAsAdmin(page);
     await page.getByLabel("Search users").fill("Kevin");
@@ -40,10 +45,10 @@ test.describe("Administrator user management", () => {
     await page.getByRole("button", { name: "Save User" }).click();
     await expect(page.getByRole("status")).toContainText("User saved successfully");
 
-    await page.getByRole("button", { name: /Admin/ }).click();
+    await page.getByRole("button", { name: /John Smith/ }).click();
     await page.getByRole("button", { name: /Logout/ }).click();
     await page.getByLabel("Email address").fill(email);
-    await page.getByLabel("Password").fill("ResetPass1!");
+    await page.locator("#login-password").fill("ResetPass1!");
     await page.getByRole("button", { name: "Sign In" }).click();
     await expect(page).toHaveURL(/.*\/change-password/);
     await expect(page.getByRole("heading", { name: "Change Your Password" })).toBeVisible();
@@ -59,7 +64,7 @@ test.describe("Administrator user management", () => {
     // The seeded database has one active Administrator. Changing that user's
     // role exercises the same last-admin safety rule without invalidating the
     // session before the assertion can be observed.
-    await page.getByLabel("Role").selectOption("REQUESTER");
+    await page.locator("#user-role").selectOption("REQUESTER");
     await page.getByRole("button", { name: "Save User" }).click();
     await expect(page.getByRole("alert")).toContainText("last active Administrator");
   });

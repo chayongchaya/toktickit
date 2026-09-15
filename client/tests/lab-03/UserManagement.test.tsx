@@ -17,7 +17,9 @@ describe("UserManagementPage", () => {
     render(<BrowserRouter><UserManagementPage /></BrowserRouter>);
     await waitFor(() => expect(screen.getByText("Kevin Patel")).toBeInTheDocument());
     expect(screen.getAllByText("IT Staff").some((element) => element.classList.contains("badge"))).toBe(true);
+    getAdminUsers.mockClear();
     fireEvent.change(screen.getByLabelText("Search users"), { target: { value: "Kevin" } });
+    expect(getAdminUsers).not.toHaveBeenCalled();
     await waitFor(() => expect(getAdminUsers).toHaveBeenLastCalledWith("Kevin", ""));
   });
 

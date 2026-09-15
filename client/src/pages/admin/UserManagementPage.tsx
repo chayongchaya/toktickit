@@ -18,6 +18,7 @@ function roleBadge(role: string) {
 export const UserManagementPage: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
   const [form, setForm] = useState(emptyForm);
@@ -29,13 +30,26 @@ export const UserManagementPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const requestId = React.useRef(0);
 
   const loadUsers = async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
-    try { setUsers(await getAdminUsers(search, role)); setError(null); }
-    catch (err) { setError(err instanceof ApiError && err.status === 403 ? "You are not allowed to manage users." : "Unable to load users."); }
-    finally { setLoading(false); }
+    try {
+      const result = await getAdminUsers(search, role);
+      if (currentRequest !== requestId.current) return;
+      setUsers(result); setError(null);
+    } catch (err) {
+      if (currentRequest !== requestId.current) return;
+      setError(err instanceof ApiError && err.status === 403 ? "You are not allowed to manage users." : "Unable to load users.");
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false);
+    }
   };
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 350);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
   useEffect(() => { void loadUsers(); }, [search, role]);
 
   const activeAdmins = useMemo(() => users.filter((entry) => entry.role === "ADMINISTRATOR" && entry.isActive).length, [users]);
@@ -100,8 +114,8 @@ export const UserManagementPage: React.FC = () => {
     <div className="mb-4"><h1 className="h4 fw-bold mb-1">User Management</h1><p className="text-muted small mb-0">Create and manage TokTickIT user accounts.</p></div>
     {error && <div className="alert alert-danger" role="alert">{error}</div>}{success && <div className="alert alert-success" role="status">{success}</div>}{fieldErrors.form && <div className="alert alert-danger" role="alert">{fieldErrors.form}</div>}
     <div className="row g-4 align-items-start">
-      <div className="col-lg-7"><div className="card border-0 shadow-sm rounded-3 bg-white"><div className="card-body p-3"><div className="row g-2"><div className="col-md-8"><label htmlFor="user-search" className="visually-hidden">Search users</label><div className="input-group input-group-sm"><span className="input-group-text">🔍</span><input id="user-search" className="form-control" placeholder="Search name or email..." value={search} onChange={(event) => setSearch(event.target.value)} /></div></div><div className="col-md-4"><label htmlFor="user-role-filter" className="visually-hidden">Role</label><select id="user-role-filter" className="form-select form-select-sm" value={role} onChange={(event) => setRole(event.target.value)}><option value="">All Roles</option>{roles.map((entry) => <option key={entry} value={entry}>{roleLabels[entry]}</option>)}</select></div></div></div></div>
-        <div className="card border-0 shadow-sm rounded-3 bg-white mt-3 overflow-hidden"><div className="table-responsive"><table className="table align-middle mb-0"><thead style={{ backgroundColor: "#EAF6EF" }}><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="text-center py-5 text-muted"><span className="placeholder-glow"><span className="placeholder col-8" /></span></td></tr> : users.length === 0 ? <tr><td colSpan={5} className="text-center py-5 text-muted">{search || role ? <>No users match your search. <button className="btn btn-link btn-sm" onClick={() => { setSearch(""); setRole(""); }}>Clear</button></> : "No users yet."}</td></tr> : users.map((entry) => <tr key={entry.id}><td className="fw-semibold">{entry.name}</td><td className="small">{entry.email}</td><td>{roleBadge(entry.role)}</td><td><span className={entry.isActive ? "text-success" : "text-danger"}>{entry.isActive ? "Active" : "Inactive"}</span></td><td><button className="btn btn-sm btn-light border" onClick={() => startEdit(entry)}>Edit</button></td></tr>)}</tbody></table></div></div>
+      <div className="col-lg-7"><div className="card border-0 shadow-sm rounded-3 bg-white"><div className="card-body p-3"><div className="row g-2"><div className="col-md-8"><label htmlFor="user-search" className="visually-hidden">Search users</label><div className="input-group input-group-sm"><span className="input-group-text">🔍</span><input id="user-search" className="form-control" placeholder="Search name or email..." value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></div></div><div className="col-md-4"><label htmlFor="user-role-filter" className="visually-hidden">Role</label><select id="user-role-filter" className="form-select form-select-sm" value={role} onChange={(event) => setRole(event.target.value)}><option value="">All Roles</option>{roles.map((entry) => <option key={entry} value={entry}>{roleLabels[entry]}</option>)}</select></div></div></div></div>
+        <div className="card border-0 shadow-sm rounded-3 bg-white mt-3 overflow-hidden"><div className="table-responsive"><table className="table align-middle mb-0"><thead style={{ backgroundColor: "#EAF6EF" }}><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="text-center py-5 text-muted"><span className="placeholder-glow"><span className="placeholder col-8" /></span></td></tr> : users.length === 0 ? <tr><td colSpan={5} className="text-center py-5 text-muted">{search || role ? <>No users match your search. <button className="btn btn-link btn-sm" onClick={() => { setSearchInput(""); setSearch(""); setRole(""); }}>Clear</button></> : "No users yet."}</td></tr> : users.map((entry) => <tr key={entry.id}><td className="fw-semibold">{entry.name}</td><td className="small">{entry.email}</td><td>{roleBadge(entry.role)}</td><td><span className={entry.isActive ? "text-success" : "text-danger"}>{entry.isActive ? "Active" : "Inactive"}</span></td><td><button className="btn btn-sm btn-light border" onClick={() => startEdit(entry)}>Edit</button></td></tr>)}</tbody></table></div></div>
       </div>
       <div className="col-lg-5"><div className="card border-0 shadow-sm rounded-3 p-4 bg-white"><div className="d-flex justify-content-between align-items-center mb-3"><h2 className="h6 fw-bold mb-0">{isEditing ? "Edit User" : "Create User"}</h2>{isEditing && <button type="button" className="btn btn-sm btn-light border" onClick={clearForm}>New User</button>}</div><form onSubmit={save} noValidate>
         <label htmlFor="user-name" className="form-label small fw-semibold">Full Name</label><input id="user-name" className={`form-control form-control-sm mb-1 ${fieldErrors.name ? "is-invalid" : ""}`} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />{fieldErrors.name && <div className="invalid-feedback d-block mb-2">{fieldErrors.name}</div>}

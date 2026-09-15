@@ -110,8 +110,8 @@ between Public Comments and Internal Notes, full user flows).
 | E2E-01 | AC-01, AC-02 | E2E | Full login-with-initial-password → forced change → role-correct shell flow | App shell shows correct name/role only after the change succeeds | `e2e/lab-03/authentication.spec.ts` | Planned |
 | E2E-02 | AC-06 | E2E | Logout, then attempt direct navigation to a protected route via URL | Redirected to login; no protected data is ever rendered | `e2e/lab-03/authentication.spec.ts` | Planned |
 | E2E-03 | AC-07, AC-09 | E2E | IT Staff claims a ticket, posts a Public Comment and an Internal Note, changes status | Queue reflects new owner/status; the Requester later sees the Public Comment but never the Internal Note | `e2e/lab-03/staff-ticket-flow.spec.ts` | Planned |
-| E2E-04 | AC-13, AC-14, AC-18 | E2E | Admin searches users, creates one, triggers a duplicate-email error, resets a password | Inline error then success; the password-reset user is forced through Change Password on next login | `e2e/lab-03/user-administration.spec.ts` | Planned |
-| E2E-05 | AC-11, AC-12 | E2E | Admin attempts self-deactivation and attempts to deactivate the last remaining Administrator | Both attempts blocked with a visible conflict message; account states unchanged | `e2e/lab-03/user-administration.spec.ts` | Planned |
+| E2E-04 | AC-13, AC-14, AC-18 | E2E | Admin searches users, creates one, triggers a duplicate-email error, resets a password | Inline error then success; the password-reset user is forced through Change Password on next login | `e2e/lab-03/user-administration.spec.ts` | Pass |
+| E2E-05 | AC-11, AC-12 | E2E | Admin attempts self-deactivation and attempts to deactivate the last remaining Administrator | Both attempts blocked with a visible conflict message; account states unchanged | `e2e/lab-03/user-administration.spec.ts` | Pass |
 
 ## 3. Acceptance-Criterion Traceability
 
