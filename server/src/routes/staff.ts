@@ -68,7 +68,9 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
           relatedSystem: { select: { id: true, name: true } },
           owner: { select: { id: true, name: true } },
         },
-        orderBy: { [sort]: sortOrder },
+        // Use a stable secondary key so equal timestamps/priorities have the
+        // same order across equivalent requests and page boundaries.
+        orderBy: [{ [sort]: sortOrder }, { id: "desc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
