@@ -57,7 +57,7 @@ between Public Comments and Internal Notes, full user flows).
 | API-08 | AC-25 | Security | Requester session calls `GET /api/staff/tickets` and `GET /api/admin/users` | 403 for both | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | API-09 | AC-26 | Security | IT Staff session calls any `/api/admin/*` endpoint | 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | API-10 | AC-03 | Security | Requester submits a ticket-create or comment body containing a different `requesterId`/`ownerId`/`authorId` | Value is ignored; authenticated identity used instead | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| API-11 | AC-04, BR-22 | Security | Requester session calls `GET/POST /api/staff/tickets/:id/notes` directly | 403; response body contains no note content or count | `server/tests/lab-03/authorization.api.test.ts` | Planned |
+| API-11 | AC-04, BR-22 | Security | Requester session calls `GET/POST /api/staff/tickets/:id/notes` directly | 403; response body contains no note content or count | `server/tests/lab-03/authorization.api.test.ts` | Pass |
 | API-12 | AC-28 | Security | Requester requests or uploads an attachment to a ticket id they do not own | 404 (existence-hiding, per FR-07 policy), not 403 | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | API-13 | FR-07 | Security | Same failure reason (e.g. "not your ticket") triggered via three different endpoints | Identical status code every time, matching the FR-07 order | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | API-14 | AC-15 | API | Queue search by ticket number and by summary substring | Only matching tickets returned | `server/tests/lab-03/staff-queue.api.test.ts` | Pass |
