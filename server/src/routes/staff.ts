@@ -9,6 +9,21 @@ const STATUSES = [
   "RESOLVED", "CLOSED", "REOPENED", "CANCELLED",
 ] as const;
 
+// Active users who are allowed to own tickets; this list is independent of
+// the current ticket page and any queue filters.
+staffRouter.get("/owners", async (_req: Request, res: Response) => {
+  try {
+    const owners = await prisma.user.findMany({
+      where: { isActive: true, role: { in: ["IT_STAFF", "ADMINISTRATOR"] } },
+      select: { id: true, name: true, email: true, isActive: true },
+      orderBy: { name: "asc" },
+    });
+    return res.json(owners);
+  } catch {
+    return res.status(500).json({ error: "Failed to retrieve ticket owners" });
+  }
+});
+
 // GET /api/staff/tickets - the shared IT Staff/Administrator queue.
 staffRouter.get("/tickets", async (req: Request, res: Response) => {
   const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
@@ -27,6 +42,7 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
   const sort = ["createdAt", "updatedAt", "itPriority"].includes(requestedSort)
     ? requestedSort
     : "createdAt";
+  const sortOrder = req.query.sortOrder === "asc" ? "asc" : "desc";
 
   const where: any = {};
   if (search) {
@@ -52,7 +68,7 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
           relatedSystem: { select: { id: true, name: true } },
           owner: { select: { id: true, name: true } },
         },
-        orderBy: { [sort]: "desc" },
+        orderBy: { [sort]: sortOrder },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

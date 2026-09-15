@@ -93,8 +93,14 @@ export interface StaffTicketListParams {
   itPriority?: string;
   owner?: number | string;
   sort?: "createdAt" | "updatedAt" | "itPriority";
+  sortOrder?: "asc" | "desc";
   page?: number;
   pageSize?: number;
+}
+
+export async function getStaffOwners(): Promise<RequesterUser[]> {
+  const res = await fetch(`${API_URL}/api/staff/owners`, { credentials: CREDENTIALS });
+  return handleResponse<RequesterUser[]>(res, "Failed to load ticket owners.");
 }
 
 export async function getStaffTickets(params: StaffTicketListParams = {}): Promise<TicketsResponse> {
