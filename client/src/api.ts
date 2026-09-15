@@ -13,6 +13,43 @@ export interface AuthUser {
   mustChangePassword: boolean;
 }
 
+export interface AdminUser extends AuthUser {
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AdminUserInput {
+  name: string;
+  email: string;
+  role: AuthUser["role"];
+  isActive: boolean;
+  initialPassword?: string;
+}
+
+export async function getAdminUsers(search = "", role = ""): Promise<AdminUser[]> {
+  const query = new URLSearchParams();
+  if (search) query.set("search", search);
+  if (role) query.set("role", role);
+  const res = await fetch(`${API_URL}/api/admin/users?${query.toString()}`, { credentials: CREDENTIALS });
+  return handleResponse<AdminUser[]>(res, "Failed to load users.");
+}
+
+export async function createAdminUser(input: AdminUserInput & { initialPassword: string }): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/api/admin/users`, { method: "POST", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  return handleResponse<AdminUser>(res, "Failed to create user.");
+}
+
+export async function updateAdminUser(id: number, input: Partial<AdminUserInput>): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}`, { method: "PATCH", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  return handleResponse<AdminUser>(res, "Failed to update user.");
+}
+
+export async function resetAdminUserPassword(id: number, newInitialPassword: string): Promise<{ mustChangePassword: boolean }> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/reset-password`, { method: "POST", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newInitialPassword }) });
+  return handleResponse<{ mustChangePassword: boolean }>(res, "Failed to reset password.");
+}
+
 
 export interface Category {
   id: number;

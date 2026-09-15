@@ -18,6 +18,7 @@ export const Navbar: React.FC = () => {
   const isMyTickets = location.pathname === "/tickets" || location.pathname.startsWith("/tickets/");
   const isCreateTicket = location.pathname === "/tickets/new";
   const isQueue = location.pathname === "/queue" || location.pathname.startsWith("/queue/");
+  const isAdmin = location.pathname === "/admin/users";
   const canUseQueue = user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR";
 
   const handleLogout = async () => {
@@ -27,13 +28,6 @@ export const Navbar: React.FC = () => {
   };
 
   const roleBadge = user ? ROLE_BADGE[user.role] : undefined;
-
-  // Lab 3 auth-foundation scope only: the Requester nav pair below is shown
-  // to everyone for now (no other destinations exist yet). Role-conditional
-  // nav (🎫 My Queue for IT Staff/Administrator, ⚙️ Admin for
-  // Administrator) is added in feature/lab3-staff-queue and
-  // feature/lab3-admin-users respectively, once those routes exist — adding
-  // the links before the pages exist would just create dead links.
 
   return (
     <nav className="navbar navbar-expand px-3 px-md-4 py-2 sticky-top" style={{ backgroundColor: "#006B3C" }}>
@@ -49,6 +43,11 @@ export const Navbar: React.FC = () => {
             {canUseQueue && (
               <Link to="/queue" className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${isQueue ? "bg-black bg-opacity-25" : "opacity-75"}`} style={{ textDecoration: "none" }}>
                 <span>🎫</span> <span className="d-none d-sm-inline">My Queue</span>
+              </Link>
+            )}
+            {user?.role === "ADMINISTRATOR" && (
+              <Link to="/admin/users" className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${isAdmin ? "bg-black bg-opacity-25" : "opacity-75"}`} style={{ textDecoration: "none" }}>
+                <span>⚙️</span> <span className="d-none d-sm-inline">Admin</span>
               </Link>
             )}
             {user?.role === "REQUESTER" && <>
