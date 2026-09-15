@@ -21,7 +21,7 @@ test.describe("Administrator user management", () => {
   test("searches, creates, and rejects a duplicate email", async ({ page }) => {
     await signInAsAdmin(page);
     await page.getByLabel("Search users").fill("Kevin");
-    await expect(page.getByText("Kevin Patel")).toBeVisible();
+    await expect(page.getByText("Kevin Patel").first()).toBeVisible();
 
     const email = `e2e-admin-${Date.now()}@example.com`;
     await page.getByLabel("Full Name").fill("E2E Managed User");

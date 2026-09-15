@@ -15,7 +15,7 @@ describe("UserManagementPage", () => {
 
   it("renders searchable users and role badges", async () => {
     render(<BrowserRouter><UserManagementPage /></BrowserRouter>);
-    await waitFor(() => expect(screen.getByText("Kevin Patel")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Kevin Patel").length).toBeGreaterThan(0));
     expect(screen.getAllByText("IT Staff").some((element) => element.classList.contains("badge"))).toBe(true);
     getAdminUsers.mockClear();
     fireEvent.change(screen.getByLabelText("Search users"), { target: { value: "Kevin" } });
@@ -40,8 +40,8 @@ describe("UserManagementPage", () => {
     updateAdminUser.mockResolvedValue({ ...user, name: "Updated User", isActive: false });
     resetAdminUserPassword.mockResolvedValue({ mustChangePassword: true });
     render(<BrowserRouter><UserManagementPage /></BrowserRouter>);
-    await waitFor(() => expect(screen.getByText("Kevin Patel")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await waitFor(() => expect(screen.getAllByText("Kevin Patel").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     fireEvent.change(screen.getByLabelText("Full Name"), { target: { value: "Updated User" } });
     fireEvent.click(screen.getByRole("button", { name: "Set New Initial Password" }));
     fireEvent.change(screen.getByLabelText("New Initial Password"), { target: { value: "ResetPass1!" } });
@@ -53,8 +53,8 @@ describe("UserManagementPage", () => {
   it("shows safe conflict and failure messages", async () => {
     updateAdminUser.mockRejectedValue(new ApiError("A user with this email already exists", 409, "email"));
     render(<BrowserRouter><UserManagementPage /></BrowserRouter>);
-    await waitFor(() => expect(screen.getByText("Kevin Patel")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await waitFor(() => expect(screen.getAllByText("Kevin Patel").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     fireEvent.click(screen.getByRole("button", { name: "Save User" }));
     await waitFor(() => expect(screen.getByText("A user with this email already exists")).toBeInTheDocument());
   });
@@ -67,14 +67,14 @@ describe("UserManagementPage", () => {
 
     getAdminUsers.mockResolvedValue([user]);
     render(<BrowserRouter><UserManagementPage /></BrowserRouter>);
-    await waitFor(() => expect(screen.getByText("Kevin Patel")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await waitFor(() => expect(screen.getAllByText("Kevin Patel").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     updateAdminUser.mockRejectedValueOnce(new ApiError("User not found", 404));
     fireEvent.click(screen.getByRole("button", { name: "Save User" }));
     expect(await screen.findByText("User was no longer available. The list was refreshed.")).toBeInTheDocument();
 
     updateAdminUser.mockRejectedValueOnce(new ApiError("Unable to update users", 500));
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     fireEvent.click(screen.getByRole("button", { name: "Save User" }));
     expect(await screen.findByText("Unable to update users")).toBeInTheDocument();
   });
@@ -85,7 +85,7 @@ describe("UserManagementPage", () => {
       { ...user, id: 2, role: "ADMINISTRATOR", isActive: true },
     ]);
     const { unmount } = render(<BrowserRouter><UserManagementPage /></BrowserRouter>);
-    await waitFor(() => expect(screen.getByText("Admin")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Admin").length).toBeGreaterThan(0));
     const rows = screen.getAllByRole("row");
     fireEvent.click(rows[1].querySelector("button")!);
     fireEvent.click(screen.getByRole("button", { name: "Deactivate User" }));
@@ -94,7 +94,7 @@ describe("UserManagementPage", () => {
 
     getAdminUsers.mockResolvedValue([{ ...user, id: 2, role: "ADMINISTRATOR", isActive: true }]);
     render(<BrowserRouter><UserManagementPage /></BrowserRouter>);
-    await waitFor(() => expect(screen.getByText("Kevin Patel")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Kevin Patel").length).toBeGreaterThan(0));
     fireEvent.click(screen.getAllByRole("button", { name: "Edit" }).at(-1)!);
     fireEvent.click(screen.getAllByRole("button", { name: "Deactivate User" }).at(-1)!);
     expect(await screen.findByText("The last active Administrator cannot be deactivated or reassigned.")).toBeInTheDocument();
