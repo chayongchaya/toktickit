@@ -84,9 +84,19 @@ describe("Cross-cutting Authorization (tests.md API-08 to API-13)", () => {
     expect(res.body.author.id).not.toBe(someoneElse.id);
   });
 
-  it.todo(
-    "API-11 (AC-04, BR-22): a Requester session calling GET/POST /api/staff/tickets/:id/notes gets 403 with no note content or count in the response -- needs feature/lab3-staff-ticket-detail"
-  );
+  it("API-11 (AC-04, BR-22): a Requester cannot access Internal Notes and receives no note data", async () => {
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const ticket = await prisma.ticket.findFirstOrThrow();
+    const cookie = await loginAs(app, requester.email);
+    const getResponse = await request(app).get(`/api/staff/tickets/${ticket.id}/notes`).set("Cookie", cookie);
+    const postResponse = await request(app).post(`/api/staff/tickets/${ticket.id}/notes`).set("Cookie", cookie).send({ content: "should be blocked" });
+    expect(getResponse.status).toBe(403);
+    expect(postResponse.status).toBe(403);
+    expect(getResponse.body).toEqual({ error: "Forbidden" });
+    expect(postResponse.body).toEqual({ error: "Forbidden" });
+    expect(JSON.stringify(getResponse.body)).not.toContain("note");
+    expect(JSON.stringify(postResponse.body)).not.toContain("note");
+  });
 
   it("API-12 (AC-28): a Requester requesting an attachment on a ticket they don't own gets 404, not 403 (existence-hiding)", async () => {
     const [owner, other] = await prisma.user.findMany({

@@ -1,13 +1,31 @@
 import { Router, Request, Response } from "express";
+import fs from "fs";
 import { getPrisma } from "../prisma.js";
+import { TICKET_STATUSES, TICKET_TRANSITIONS } from "../lib/ticketTransitions.js";
 
 export const staffRouter = Router();
 const prisma = getPrisma();
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
-const STATUSES = [
-  "NEW", "OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER",
-  "RESOLVED", "CLOSED", "REOPENED", "CANCELLED",
-] as const;
+
+const ticketDetailInclude = {
+  requester: { select: { id: true, name: true, email: true } },
+  category: { select: { id: true, name: true } },
+  relatedSystem: { select: { id: true, name: true } },
+  owner: { select: { id: true, name: true } },
+  attachments: { select: { id: true, fileName: true, originalFileName: true, fileSize: true, mimeType: true, isRemoved: true, removalReason: true, createdAt: true, storagePath: true } },
+  publicComments: { orderBy: { createdAt: "asc" as const }, select: { id: true, content: true, createdAt: true, author: { select: { id: true, name: true, role: true } } } },
+  internalNotes: { orderBy: { createdAt: "asc" as const }, select: { id: true, content: true, createdAt: true, author: { select: { id: true, name: true, role: true } } } },
+};
+
+function withAttachmentAvailability<T extends { attachments: Array<{ storagePath: string; isRemoved: boolean }> }>(ticket: T) {
+  return {
+    ...ticket,
+    attachments: ticket.attachments.map(({ storagePath, ...attachment }) => ({
+      ...attachment,
+      isUnavailable: !attachment.isRemoved && !fs.existsSync(storagePath),
+    })),
+  };
+}
 
 // Active users who are allowed to own tickets; this list is independent of
 // the current ticket page and any queue filters.
@@ -21,6 +39,70 @@ staffRouter.get("/owners", async (_req: Request, res: Response) => {
     return res.json(owners);
   } catch {
     return res.status(500).json({ error: "Failed to retrieve ticket owners" });
+  }
+});
+
+staffRouter.get("/tickets/:id", async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid ticket ID" });
+  try {
+    const ticket = await prisma.ticket.findUnique({ where: { id }, include: ticketDetailInclude });
+    if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+    const responseTicket = withAttachmentAvailability(ticket);
+    return res.json({ ...responseTicket, ownerId: ticket.ownerId, ownerName: ticket.owner?.name ?? null });
+  } catch {
+    return res.status(500).json({ error: "Failed to retrieve staff ticket details" });
+  }
+});
+
+staffRouter.patch("/tickets/:id/owner", async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid ticket ID" });
+  const ownerId = req.body?.ownerId;
+  if (typeof ownerId !== "number" || !Number.isInteger(ownerId)) return res.status(400).json({ error: "ownerId must be a number", field: "ownerId" });
+  try {
+    const ticket = await prisma.ticket.findUnique({ where: { id } });
+    if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+    const owner = await prisma.user.findFirst({ where: { id: ownerId, isActive: true, role: { in: ["IT_STAFF", "ADMINISTRATOR"] } } });
+    if (!owner) return res.status(409).json({ error: "Ticket owner must be an active IT Staff or Administrator user" });
+    const updated = await prisma.ticket.update({ where: { id }, data: { ownerId }, include: ticketDetailInclude });
+    const responseTicket = withAttachmentAvailability(updated);
+    return res.json({ ...responseTicket, ownerId: updated.ownerId, ownerName: updated.owner?.name ?? null });
+  } catch {
+    return res.status(500).json({ error: "Failed to update ticket owner" });
+  }
+});
+
+staffRouter.patch("/tickets/:id/priority", async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid ticket ID" });
+  const itPriority = req.body?.itPriority;
+  if (!(PRIORITIES as readonly string[]).includes(itPriority)) return res.status(400).json({ error: "Invalid IT priority", field: "itPriority" });
+  try {
+    const exists = await prisma.ticket.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) return res.status(404).json({ error: "Ticket not found" });
+    const updated = await prisma.ticket.update({ where: { id }, data: { itPriority }, include: ticketDetailInclude });
+    const responseTicket = withAttachmentAvailability(updated);
+    return res.json({ ...responseTicket, ownerId: updated.ownerId, ownerName: updated.owner?.name ?? null });
+  } catch {
+    return res.status(500).json({ error: "Failed to update IT priority" });
+  }
+});
+
+staffRouter.patch("/tickets/:id/status", async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid ticket ID" });
+  const currentStatus = req.body?.currentStatus;
+  if (!(TICKET_STATUSES as readonly string[]).includes(currentStatus)) return res.status(400).json({ error: "Invalid status value", field: "currentStatus" });
+  try {
+    const ticket = await prisma.ticket.findUnique({ where: { id } });
+    if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+    if (!(TICKET_TRANSITIONS[ticket.currentStatus] ?? []).includes(currentStatus)) return res.status(409).json({ error: `Transition from ${ticket.currentStatus} to ${currentStatus} is not permitted` });
+    const updated = await prisma.ticket.update({ where: { id }, data: { currentStatus }, include: ticketDetailInclude });
+    const responseTicket = withAttachmentAvailability(updated);
+    return res.json({ ...responseTicket, ownerId: updated.ownerId, ownerName: updated.owner?.name ?? null });
+  } catch {
+    return res.status(500).json({ error: "Failed to update ticket status" });
   }
 });
 
@@ -51,7 +133,7 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
       { summary: { contains: search, mode: "insensitive" } },
     ];
   }
-  if (status && (STATUSES as readonly string[]).includes(status)) where.currentStatus = status;
+  if (status && (TICKET_STATUSES as readonly string[]).includes(status)) where.currentStatus = status;
   if (category && Number.isFinite(Number(category))) where.categoryId = Number(category);
   if (requestedPriority && (PRIORITIES as readonly string[]).includes(requestedPriority)) where.requestedPriority = requestedPriority;
   if (itPriority && (PRIORITIES as readonly string[]).includes(itPriority)) where.itPriority = itPriority;
@@ -77,7 +159,7 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
     ]);
 
     return res.json({
-      data: tickets.map((ticket) => ({
+      data: tickets.map((ticket: (typeof tickets)[number]) => ({
         ...ticket,
         ownerId: ticket.ownerId,
         ownerName: ticket.owner?.name ?? null,
