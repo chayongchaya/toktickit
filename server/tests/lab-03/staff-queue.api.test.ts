@@ -48,13 +48,46 @@ describe("IT Staff ticket queue", () => {
     expect(search.status).toBe(200);
     expect(search.body.data.map((ticket: { id: number }) => ticket.id)).toContain(known.id);
 
+    const combined = await request(app)
+      .get(`/api/staff/tickets?status=${known.currentStatus}&requestedPriority=${known.requestedPriority}&itPriority=${known.itPriority}&category=${known.categoryId}`)
+      .set("Cookie", cookie);
+    expect(combined.status).toBe(200);
+    expect(combined.body.data.every((ticket: { currentStatus: string; requestedPriority: string; itPriority: string; categoryId: number }) =>
+      ticket.currentStatus === known.currentStatus && ticket.requestedPriority === known.requestedPriority &&
+      ticket.itPriority === known.itPriority && ticket.categoryId === known.categoryId)).toBe(true);
+
     const unassigned = await request(app).get("/api/staff/tickets?owner=unassigned").set("Cookie", cookie);
     expect(unassigned.status).toBe(200);
     expect(unassigned.body.data.every((ticket: { ownerId: number | null }) => ticket.ownerId === null)).toBe(true);
 
-    const fallback = await request(app).get("/api/staff/tickets?sort=not-a-sort").set("Cookie", cookie);
+    const explicitDefault = await request(app).get("/api/staff/tickets?sort=createdAt&sortOrder=desc&pageSize=20").set("Cookie", cookie);
+    const fallback = await request(app).get("/api/staff/tickets?sort=not-a-sort&pageSize=20").set("Cookie", cookie);
     expect(fallback.status).toBe(200);
-    expect(fallback.body.pagination.total).toBeGreaterThanOrEqual(0);
+    expect(fallback.body.data.map((ticket: { id: number }) => ticket.id)).toEqual(explicitDefault.body.data.map((ticket: { id: number }) => ticket.id));
     expect(SEED_PASSWORD).toBeTruthy();
+  });
+
+  it("sorts in both directions and preserves pagination metadata across pages", async () => {
+    const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
+    const cookie = await loginAs(app, staff.email);
+    const asc = await request(app).get("/api/staff/tickets?sort=createdAt&sortOrder=asc&pageSize=3&page=1").set("Cookie", cookie);
+    const desc = await request(app).get("/api/staff/tickets?sort=createdAt&sortOrder=desc&pageSize=3&page=1").set("Cookie", cookie);
+    expect(asc.status).toBe(200); expect(desc.status).toBe(200);
+    expect(asc.body.data.map((ticket: { createdAt: string }) => ticket.createdAt)).toEqual([...asc.body.data.map((ticket: { createdAt: string }) => ticket.createdAt)].sort());
+    expect(desc.body.data.map((ticket: { createdAt: string }) => ticket.createdAt)).toEqual([...desc.body.data.map((ticket: { createdAt: string }) => ticket.createdAt)].sort().reverse());
+
+    const page2 = await request(app).get("/api/staff/tickets?sort=createdAt&sortOrder=asc&pageSize=3&page=2").set("Cookie", cookie);
+    expect(page2.status).toBe(200);
+    expect(page2.body.pagination).toMatchObject({ page: 2, pageSize: 3, total: asc.body.pagination.total, totalPages: asc.body.pagination.totalPages });
+    expect(page2.body.data.map((ticket: { id: number }) => ticket.id)).not.toEqual(asc.body.data.map((ticket: { id: number }) => ticket.id));
+  });
+
+  it("returns a successful empty result for a query with no matches", async () => {
+    const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
+    const cookie = await loginAs(app, staff.email);
+    const response = await request(app).get("/api/staff/tickets?search=definitely-no-such-ticket").set("Cookie", cookie);
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([]);
+    expect(response.body.pagination.total).toBe(0);
   });
 });
