@@ -52,6 +52,14 @@ export interface PublicComment {
   author: { id: number; name: string; role: string };
 }
 
+export interface InternalNote {
+  id: number;
+  ticketId: number;
+  content: string;
+  createdAt: string;
+  author: { id: number; name: string; role: string };
+}
+
 export interface Ticket {
   id: number;
   ticketNumber: string;
@@ -71,6 +79,9 @@ export interface Ticket {
   relatedSystem?: RelatedSystem;
   attachments?: Attachment[];
   publicComments?: PublicComment[];
+  internalNotes?: InternalNote[];
+  ownerId?: number | null;
+  ownerName?: string | null;
 }
 
 export interface Pagination {
@@ -110,6 +121,34 @@ export async function getStaffTickets(params: StaffTicketListParams = {}): Promi
   });
   const res = await fetch(`${API_URL}/api/staff/tickets?${query.toString()}`, { credentials: CREDENTIALS });
   return handleResponse<TicketsResponse>(res, "Failed to load staff ticket queue.");
+}
+
+export async function getStaffTicket(id: number | string): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${id}`, { credentials: CREDENTIALS });
+  return handleResponse<Ticket>(res, "Failed to load staff ticket detail.");
+}
+
+async function patchStaffTicket(id: number | string, path: string, body: unknown): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${id}/${path}`, {
+    method: "PATCH", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  return handleResponse<Ticket>(res, "Failed to update staff ticket.");
+}
+
+export const updateStaffTicketOwner = (id: number | string, ownerId: number) => patchStaffTicket(id, "owner", { ownerId });
+export const updateStaffTicketPriority = (id: number | string, itPriority: string) => patchStaffTicket(id, "priority", { itPriority });
+export const updateStaffTicketStatus = (id: number | string, currentStatus: string) => patchStaffTicket(id, "status", { currentStatus });
+
+export async function getInternalNotes(ticketId: number | string): Promise<InternalNote[]> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/notes`, { credentials: CREDENTIALS });
+  return handleResponse<InternalNote[]>(res, "Failed to load internal notes.");
+}
+
+export async function postInternalNote(ticketId: number | string, content: string): Promise<InternalNote> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/notes`, {
+    method: "POST", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
+  });
+  return handleResponse<InternalNote>(res, "Failed to post internal note.");
 }
 
 export interface SystemStatus {

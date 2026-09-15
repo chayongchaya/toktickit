@@ -9,6 +9,7 @@ import { CreateTicketPage } from "./pages/CreateTicketPage.js";
 import { TicketListPage } from "./pages/TicketListPage.js";
 import { TicketDetailPage } from "./pages/TicketDetailPage.js";
 import { StaffTicketQueuePage } from "./pages/staff/StaffTicketQueuePage.js";
+import { StaffTicketDetailPage } from "./pages/staff/StaffTicketDetailPage.js";
 
 type UiState = "idle" | "loading" | "success" | "error";
 
@@ -140,6 +141,7 @@ export default function App() {
             }
           />
           <Route path="/queue" element={<StaffOnlyLayout><StaffTicketQueuePage /></StaffOnlyLayout>} />
+          <Route path="/queue/:id" element={<StaffOnlyLayout><StaffTicketDetailPage /></StaffOnlyLayout>} />
 
           {/* Catch-all Route: ต้องอยู่บรรทัดสุดท้าย */}
           <Route path="*" element={<Navigate to="/login" replace />} />

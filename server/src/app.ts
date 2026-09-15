@@ -6,6 +6,7 @@ import systemRoutes from "./routes/systems.js";
 import { ticketsRouter, attachmentsRouter } from "./routes/tickets.js";
 import { authRouter } from "./routes/auth.js";
 import { staffRouter } from "./routes/staff.js";
+import { notesRouter } from "./routes/notes.js";
 import { attachSession, requireAuth, blockIfMustChangePassword } from "./middleware/auth.js";
 import { requireRole } from "./middleware/auth.js";
 import { Role } from "@prisma/client";
@@ -97,5 +98,6 @@ app.use("/api", systemRoutes);
 app.use("/api/tickets", requireAuth, blockIfMustChangePassword, ticketsRouter);
 app.use("/api/attachments", requireAuth, blockIfMustChangePassword, attachmentsRouter);
 app.use("/api/staff", requireAuth, blockIfMustChangePassword, requireRole(Role.IT_STAFF, Role.ADMINISTRATOR), staffRouter);
+app.use("/api/staff/tickets", requireAuth, blockIfMustChangePassword, requireRole(Role.IT_STAFF, Role.ADMINISTRATOR), notesRouter);
 
 export default app;
