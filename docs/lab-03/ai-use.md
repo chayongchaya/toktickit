@@ -10,18 +10,15 @@
 
 | # | Prompt | Purpose / Outcome |
 | --- | --- | --- |
-| 1 | Compare the Staff Ticket Queue implementation with `ui-spec.md` and list missing requirements. | Identified status/priority badge tokens, owner filtering, sorting direction, and responsive card-list gaps. |
-| 2 | Check the Lab 3 branch against `tests.md` and identify uncovered API, UI, and E2E cases. | Built the remaining coverage list for queue, detail, admin, authentication, migration, and regression tests. |
-| 3 | Implement Staff Ticket Detail operations, Public Comments, Internal Notes, and attachment states within the approved scope. | Added and verified the IT Staff/Administrator detail workflow and its tests. |
-| 4 | Verify badge colors byte-for-byte against the Zen Green token table. | Corrected status, priority, and role badge tokens to match `ui-spec.md`. |
-| 5 | Diagnose the failing concurrent ticket-number regression test and preserve its uniqueness assertion. | Isolated the test from the seeded account used by auth tests without weakening the concurrency assertion. |
-| 6 | Diagnose the admin authorization test failure caused by shared seeded-user state. | Replaced the shared seeded Requester with a temporary fixture that is deleted after the test. |
-| 7 | Review all Lab 3 tests and update the traceability matrix only where executable evidence exists. | Added MIG-04 and synchronized the relevant `Pass` entries in `tests.md`. |
-| 8 | Check role-specific UI routes and prevent direct navigation to another role's destination. | Added requester-only route guards and verified the client suite. |
-| 9 | Diagnose the failing Staff E2E test where the Requester could not see the newly posted Public Comment. | Traced the failure to a session-loading redirect, added loading-aware guards and an isolated requester fixture, then re-ran the focused workflow successfully. |
+| 1 | Combine the Lab 3 PR table and merge timeline into one table. | Added `Merged at (UTC)` as a column in the existing PR table and removed the separate timeline table. |
+| 2 | Check whether the reviewer comments in `reviewer.md` were actually written by the peer reviewer. | Queried the GitHub pull-request review history and confirmed the reviewer identity, approval state, and review text. |
+| 3 | Use the actual comments from GitHub. | Replaced paraphrased review summaries with the review text retrieved from GitHub and linked each review. |
+| 4 | Include the author's responses in the same table. | Retrieved the author's actual PR comments and added them beside the corresponding reviewer comments. |
+| 5 | Remove the `Review`, `Author comment`, and `GitHub` labels from the table. | Simplified the table labels while preserving the review and response text. |
+| 6 | Summarize all changes in the current branch. | Compared the branch history with `lab3-staging` and summarized the documentation commits and changed files. |
 
 ## Reflection and Critical Review
 
-AI was useful for cross-referencing the specification, implementation, and tests, and for finding missing coverage and shared-fixture interference. It also helped review responsive UI details and isolate failures caused by mutable test-database state.
+AI was used for documentation maintenance and evidence verification in this release-documentation branch. It helped restructure the PR evidence table, retrieve and organize the actual GitHub review and response text, and summarize the branch history.
 
-The suggestions were not accepted blindly. I inspected the actual routes, Prisma queries, test helpers, and failure output, then verified the changes with the server suite, client suite, and TypeScript checks. A key limitation was that generated reports and a reused test database could show stale or order-dependent failures, so the fixes were reproduced against the test database and the tests were changed to use isolated fixtures where appropriate.
+The GitHub review and response text was checked against the repository's pull-request API rather than being invented from the surrounding context. The resulting table preserves the original wording and links each entry to its source. Git history and the working tree were also checked after each documentation change, and every requested update was committed to the branch.
