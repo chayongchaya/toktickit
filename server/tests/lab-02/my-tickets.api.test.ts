@@ -1,21 +1,28 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import request from "supertest";
-import { app } from "../../src/app";
-import { getPrisma } from "../../src/prisma";
+import { app } from "../../src/app.js";
+import { getPrisma } from "../../src/prisma.js";
+import { loginAs } from "../helpers/auth.js";
 
 const prisma = getPrisma();
 
 describe("My Tickets API (Filtering, Sorting, Pagination & Isolation)", () => {
   let userAId: number;
   let userBId: number;
+  let cookieA: string;
 
   beforeEach(async () => {
-    const users = await prisma.requesterUser.findMany({
-      where: { isActive: true },
+    // Lab 3: RequesterUser was renamed to User, and User now also holds
+    // IT Staff/Administrator rows -- the role filter is required here so
+    // this test still picks two Requesters specifically, not whichever two
+    // active users happen to come back first.
+    const users = await prisma.user.findMany({
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     userAId = users[0].id;
     userBId = users[1].id;
+    cookieA = await loginAs(app, users[0].email);
 
     const category = await prisma.category.findFirst();
     const system = await prisma.relatedSystem.findFirst();
@@ -66,9 +73,7 @@ describe("My Tickets API (Filtering, Sorting, Pagination & Isolation)", () => {
   });
 
   it("should return tickets belonging only to the authenticated requester", async () => {
-    const res = await request(app)
-      .get("/api/tickets")
-      .set("x-requester-id", userAId.toString());
+    const res = await request(app).get("/api/tickets").set("Cookie", cookieA);
 
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThanOrEqual(2);
@@ -78,9 +83,7 @@ describe("My Tickets API (Filtering, Sorting, Pagination & Isolation)", () => {
   });
 
   it("should correctly search and filter tickets by query parameters", async () => {
-    const res = await request(app)
-      .get("/api/tickets?search=Network")
-      .set("x-requester-id", userAId.toString());
+    const res = await request(app).get("/api/tickets?search=Network").set("Cookie", cookieA);
 
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);

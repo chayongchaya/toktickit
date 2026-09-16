@@ -1,5 +1,17 @@
 # TokTickIT - IT Service Desk Application
 
+## Lab 3 current workflow
+
+Lab 3 uses real session authentication and three roles instead of the retired Development Requester selector:
+
+- Requester: `/tickets` and `/tickets/new`
+- IT Staff: `/queue` and `/queue/:id`
+- Administrator: `/queue`, `/queue/:id`, and `/admin/users`
+
+The local/test seed uses `DevPass123!` for seeded active accounts only. Do not use this password in production. Administrator-created accounts start with `mustChangePassword = true` and must change their password at first login.
+
+The complete Lab 3 specification, API contract, UI specification, and test traceability matrix are in `docs/lab-03/`.
+
 TokTickIT is a full-stack IT service desk web application developed as part of **CPE 334**. This increment (Lab 2) delivers the Requester-facing ticketing MVP: a temporary Development Requester selector (test-only, not real authentication), ticket creation with validated fields and attachments, a searchable/filterable/sortable/paginated My Tickets list, a read-only Ticket Detail screen, and attachment upload/download/soft-removal — all built on the Zen Green UI theme.
 
 ---

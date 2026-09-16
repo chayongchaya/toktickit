@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useRequester } from "../context/RequesterContext.js";
+import { useAuth } from "../context/AuthContext.js";
 import {
   getCategories,
   getSystems,
@@ -26,7 +26,7 @@ interface UploadOutcome {
 }
 
 export const CreateTicketPage: React.FC = () => {
-  const { currentRequester } = useRequester();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -123,8 +123,8 @@ export const CreateTicketPage: React.FC = () => {
     }
     setFieldErrors({});
 
-    if (!currentRequester) {
-      setServerError("No Development Requester selected. Please select one before submitting.");
+    if (!user) {
+      setServerError("You must be signed in to submit a ticket.");
       return;
     }
 
@@ -133,23 +133,22 @@ export const CreateTicketPage: React.FC = () => {
     try {
       // 1. Create the ticket. createTicket() surfaces the backend's own
       // validation message (e.g. summary length) instead of a generic string.
-      const ticket = await createTicket(
-        {
-          summary: summary.trim(),
-          description: description.trim(),
-          categoryId: Number(categoryId),
-          relatedSystemId: Number(relatedSystemId),
-          requestedPriority,
-        },
-        currentRequester.id
-      );
+      // Lab 3: the acting Requester comes from the session (BR-03) — no id
+      // is ever passed from the client.
+      const ticket = await createTicket({
+        summary: summary.trim(),
+        description: description.trim(),
+        categoryId: Number(categoryId),
+        relatedSystemId: Number(relatedSystemId),
+        requestedPriority,
+      });
 
       // 2. Upload attachments one by one. Failures are collected instead of
       // only logged, so the user can see exactly which files didn't make it.
       const failures: UploadOutcome[] = [];
       for (const file of selectedFiles) {
         try {
-          await uploadAttachment(ticket.id, file, currentRequester.id);
+          await uploadAttachment(ticket.id, file);
         } catch (uploadErr: any) {
           failures.push({
             fileName: file.name,
@@ -328,7 +327,7 @@ export const CreateTicketPage: React.FC = () => {
               <div className="d-flex align-items-center gap-2">
                 <span>👤</span>
                 <span className="small text-dark">
-                  Submitting as: <strong style={{ color: "#006B3C" }}>{currentRequester?.name || "Requester"}</strong> ({currentRequester?.email})
+                  Submitting as: <strong style={{ color: "#006B3C" }}>{user?.name || "Requester"}</strong> ({user?.email})
                 </span>
               </div>
             </div>

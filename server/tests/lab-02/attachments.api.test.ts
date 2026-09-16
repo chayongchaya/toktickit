@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import request from "supertest";
-import { app } from "../../src/app";
-import { getPrisma } from "../../src/prisma";
+import { app } from "../../src/app.js";
+import { getPrisma } from "../../src/prisma.js";
+import { loginAs } from "../helpers/auth.js";
 
 const prisma = getPrisma();
 
@@ -10,14 +11,20 @@ describe("Attachment Lifecycle & Ownership API", () => {
   let userBId: number;
   let userATicketId: number;
   let testAttachmentId: number;
+  let cookieA: string;
+  let cookieB: string;
 
   beforeEach(async () => {
-    const users = await prisma.requesterUser.findMany({
-      where: { isActive: true },
+    // Lab 3: RequesterUser -> User; role filter needed since User now also
+    // holds IT Staff/Administrator rows.
+    const users = await prisma.user.findMany({
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     userAId = users[0].id;
     userBId = users[1].id;
+    cookieA = await loginAs(app, users[0].email);
+    cookieB = await loginAs(app, users[1].email);
 
     const category = await prisma.category.findFirst();
     const system = await prisma.relatedSystem.findFirst();
@@ -52,19 +59,19 @@ describe("Attachment Lifecycle & Ownership API", () => {
     testAttachmentId = attachment.id;
   });
 
-  it("should return 403 when User B tries to soft-remove User A's attachment", async () => {
+  it("should return 404 when User B tries to soft-remove User A's attachment (Lab 3: existence-hiding, not 403)", async () => {
     const res = await request(app)
       .delete(`/api/attachments/${testAttachmentId}`)
-      .set("x-requester-id", userBId.toString())
+      .set("Cookie", cookieB)
       .send({ removalReason: "Attempt unauthorized delete" });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("should return 400 when soft-removing without a removalReason", async () => {
     const res = await request(app)
       .delete(`/api/attachments/${testAttachmentId}`)
-      .set("x-requester-id", userAId.toString())
+      .set("Cookie", cookieA)
       .send({});
 
     expect(res.status).toBe(400);
@@ -73,7 +80,7 @@ describe("Attachment Lifecycle & Ownership API", () => {
   it("should allow the owner to soft-remove attachment with a valid reason", async () => {
     const res = await request(app)
       .delete(`/api/attachments/${testAttachmentId}`)
-      .set("x-requester-id", userAId.toString())
+      .set("Cookie", cookieA)
       .send({ removalReason: "Uploaded outdated document" });
 
     expect(res.status).toBe(200);
@@ -89,36 +96,28 @@ describe("Attachment Lifecycle & Ownership API", () => {
 
     const res = await request(app)
       .get(`/api/attachments/${testAttachmentId}/download`)
-      .set("x-requester-id", userAId.toString());
+      .set("Cookie", cookieA);
 
     expect(res.status).toBe(404);
   });
 });
+
 describe("POST /api/tickets/:id/attachments (real upload path)", () => {
   let activeRequesterId: number;
-  let inactiveRequesterId: number;
   let otherActiveRequesterId: number;
   let ticketId: number;
+  let cookieActive: string;
+  let cookieOther: string;
 
   beforeEach(async () => {
-    const [active, other] = await prisma.requesterUser.findMany({
-      where: { isActive: true },
+    const [active, other] = await prisma.user.findMany({
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     activeRequesterId = active.id;
     otherActiveRequesterId = other.id;
-
-    let inactive = await prisma.requesterUser.findFirst({ where: { isActive: false } });
-    if (!inactive) {
-      inactive = await prisma.requesterUser.create({
-        data: {
-          name: "Upload Test Inactive User",
-          email: `inactive-upload-${Date.now()}@kmutt.ac.th`,
-          isActive: false,
-        },
-      });
-    }
-    inactiveRequesterId = inactive.id;
+    cookieActive = await loginAs(app, active.email);
+    cookieOther = await loginAs(app, other.email);
 
     const category = await prisma.category.findFirst();
     const system = await prisma.relatedSystem.findFirst();
@@ -142,7 +141,7 @@ describe("POST /api/tickets/:id/attachments (real upload path)", () => {
   it("should store the requester's original filename separately from the generated storage filename", async () => {
     const res = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("x-requester-id", activeRequesterId.toString())
+      .set("Cookie", cookieActive)
       .attach("file", Buffer.from("fake-pdf-content"), {
         filename: "my battery diagnostic report.pdf",
         contentType: "application/pdf",
@@ -159,7 +158,7 @@ describe("POST /api/tickets/:id/attachments (real upload path)", () => {
   it("should reject upload with 400 for a disallowed file type", async () => {
     const res = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("x-requester-id", activeRequesterId.toString())
+      .set("Cookie", cookieActive)
       .attach("file", Buffer.from("not-a-real-exe"), {
         filename: "malware.exe",
         contentType: "application/octet-stream",
@@ -168,22 +167,35 @@ describe("POST /api/tickets/:id/attachments (real upload path)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("should return 403 and reject upload for an inactive Development Requester (AC-11)", async () => {
+  // Lab 3: there is no longer any way for a client to "upload as" an
+  // arbitrary requesterId at all -- identity comes exclusively from the
+  // session cookie (BR-03). The old "inactive/nonexistent requesterId"
+  // tests that lived here are structurally obsolete under session auth and
+  // have been replaced with the session-equivalent scenario: an account
+  // that goes inactive AFTER it already has a live session (AC-27).
+  it("AC-27: blocks upload once the account is deactivated mid-session (not merely at login)", async () => {
+    await prisma.user.update({ where: { id: activeRequesterId }, data: { isActive: false } });
+
     const res = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("x-requester-id", inactiveRequesterId.toString())
+      .set("Cookie", cookieActive)
       .attach("file", Buffer.from("fake-pdf-content"), {
         filename: "notes.pdf",
         contentType: "application/pdf",
       });
 
-    expect(res.status).toBe(403);
+    // attachSession re-checks isActive against the DB on every request, so
+    // this is a 401 (session no longer valid), not the old 403.
+    expect(res.status).toBe(401);
+
+    // cleanup so this doesn't affect other tests relying on this seeded user
+    await prisma.user.update({ where: { id: activeRequesterId }, data: { isActive: true } });
   });
 
-  it("should return 404 for a requesterId that does not exist at all", async () => {
+  it("should return 404 when a different active requester tries to upload to a ticket they do not own (Lab 3: existence-hiding, not 403)", async () => {
     const res = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("x-requester-id", "999999999")
+      .set("Cookie", cookieOther)
       .attach("file", Buffer.from("fake-pdf-content"), {
         filename: "notes.pdf",
         contentType: "application/pdf",
@@ -192,22 +204,10 @@ describe("POST /api/tickets/:id/attachments (real upload path)", () => {
     expect(res.status).toBe(404);
   });
 
-  it("should return 403 when a different active requester tries to upload to a ticket they do not own", async () => {
-    const res = await request(app)
-      .post(`/api/tickets/${ticketId}/attachments`)
-      .set("x-requester-id", otherActiveRequesterId.toString())
-      .attach("file", Buffer.from("fake-pdf-content"), {
-        filename: "notes.pdf",
-        contentType: "application/pdf",
-      });
-
-    expect(res.status).toBe(403);
-  });
-
   it("should download an active attachment using the original filename in Content-Disposition", async () => {
     const upload = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("x-requester-id", activeRequesterId.toString())
+      .set("Cookie", cookieActive)
       .attach("file", Buffer.from("fake-pdf-content"), {
         filename: "screenshot error.png",
         contentType: "image/png",
@@ -218,7 +218,7 @@ describe("POST /api/tickets/:id/attachments (real upload path)", () => {
 
     const download = await request(app)
       .get(`/api/attachments/${attachmentId}/download`)
-      .set("x-requester-id", activeRequesterId.toString());
+      .set("Cookie", cookieActive);
 
     expect(download.status).toBe(200);
     expect(download.headers["content-disposition"]).toContain("screenshot error.png");
@@ -229,7 +229,7 @@ describe("POST /api/tickets/:id/attachments (real upload path)", () => {
 
     const upload = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("x-requester-id", activeRequesterId.toString())
+      .set("Cookie", cookieActive)
       .attach("file", Buffer.from("fake-pdf-content"), {
         filename: originalFileName,
         contentType: "application/pdf",
@@ -240,7 +240,7 @@ describe("POST /api/tickets/:id/attachments (real upload path)", () => {
 
     const metadata = await request(app)
       .get(`/api/attachments/${upload.body.id}`)
-      .set("x-requester-id", activeRequesterId.toString());
+      .set("Cookie", cookieActive);
 
     expect(metadata.status).toBe(200);
     expect(metadata.body.originalFileName ?? metadata.body.fileName)

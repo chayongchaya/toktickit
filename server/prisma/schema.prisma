@@ -15,19 +15,43 @@ enum Priority {
 
 enum TicketStatus {
   NEW
+  OPEN
   IN_PROGRESS
+  WAITING_FOR_REQUESTER
   RESOLVED
   CLOSED
+  REOPENED
+  CANCELLED
 }
 
-model RequesterUser {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tickets   Ticket[]
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
+}
+
+// Renamed from Lab 2's RequesterUser. Now the single identity table for all
+// three roles (specification.md §7). The Prisma migration renames the
+// underlying table in place so existing Ticket.requesterId foreign keys and
+// data are preserved, not recreated.
+model User {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  role               Role     @default(REQUESTER)
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  ticketsCreated  Ticket[]        @relation("TicketRequester")
+  ticketsOwned    Ticket[]        @relation("TicketOwner")
+  publicComments  PublicComment[]
+  internalNotes   InternalNote[]
+
+  @@index([email])
+  @@index([role])
 }
 
 model Category {
@@ -47,25 +71,33 @@ model RelatedSystem {
 }
 
 model Ticket {
-  id                Int           @id @default(autoincrement())
-  ticketNumber      String        @unique
-  requesterId       Int
-  requester         RequesterUser @relation(fields: [requesterId], references: [id])
-  categoryId        Int
-  category          Category      @relation(fields: [categoryId], references: [id])
-  relatedSystemId   Int
-  relatedSystem     RelatedSystem @relation(fields: [relatedSystemId], references: [id])
-  summary           String
-  description       String
-  requestedPriority Priority      @default(MEDIUM)
-  itPriority        Priority      @default(MEDIUM)
-  currentStatus     TicketStatus  @default(NEW)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  attachments       Attachment[]
+  id                     Int           @id @default(autoincrement())
+  ticketNumber           String        @unique
+  requesterId            Int
+  requester              User          @relation("TicketRequester", fields: [requesterId], references: [id])
+  categoryId             Int
+  category               Category      @relation(fields: [categoryId], references: [id])
+  relatedSystemId        Int
+  relatedSystem          RelatedSystem @relation(fields: [relatedSystemId], references: [id])
+  summary                String
+  description            String
+  requestedPriority      Priority      @default(MEDIUM)
+  itPriority             Priority      @default(MEDIUM)
+  currentStatus          TicketStatus  @default(NEW)
+  ownerId                Int?
+  owner                  User?         @relation("TicketOwner", fields: [ownerId], references: [id])
+  problemAppearsResolved Boolean       @default(false)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  attachments    Attachment[]
+  publicComments PublicComment[]
+  internalNotes  InternalNote[]
 
   @@index([requesterId])
   @@index([createdAt])
+  @@index([ownerId])
+  @@index([currentStatus])
 }
 
 model Attachment {
@@ -81,6 +113,36 @@ model Attachment {
   removalReason    String?
   removedAt        DateTime?
   createdAt        DateTime  @default(now())
+
+  @@index([ticketId])
+}
+
+// Visible to the Requester, IT Staff, and Administrator (BR-04). Append-only
+// in Lab 3 — no update/delete fields or routes exist for this model.
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+// Visible only to IT Staff and Administrator (BR-04). Kept as a fully
+// separate table from PublicComment (not a shared polymorphic comments
+// table) so a query-scoping bug can never leak a note into the public path
+// (specification.md §7). Append-only in Lab 3.
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
 
   @@index([ticketId])
 }

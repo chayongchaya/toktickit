@@ -57,37 +57,17 @@ const isValidPriority = (value: unknown): value is Priority =>
   typeof value === "string" &&
   (VALID_PRIORITIES as readonly string[]).includes(value);
 
-// Helper: Extract requesterId from Header, Query, or Body
-const getRequesterId = (req: Request): number | null => {
-  const headerVal = req.headers["x-requester-id"];
-  const queryVal = req.query.requesterId;
-  const bodyVal = req.body?.requesterId;
-
-  const val = headerVal || queryVal || bodyVal;
-  if (!val) return null;
-
-  const id = Number(val);
-  return isNaN(id) ? null : id;
-};
-
-// Helper: Load a requester and classify it as missing / inactive / active.
-// Used to enforce AC-11: ticket creation and attachment upload must be
-// rejected for a requesterId that does not exist or is not active, even
-// when the request bypasses the UI selector.
-type RequesterCheck =
-  | { status: "missing" }
-  | { status: "inactive" }
-  | { status: "ok"; id: number };
-
-const checkRequester = async (requesterId: number): Promise<RequesterCheck> => {
-  const requester = await prisma.requesterUser.findUnique({
-    where: { id: requesterId },
-    select: { id: true, isActive: true },
-  });
-  if (!requester) return { status: "missing" };
-  if (!requester.isActive) return { status: "inactive" };
-  return { status: "ok", id: requester.id };
-};
+// Lab 3 (BR-03/FR-07): identity comes exclusively from the authenticated
+// session (req.user, attached by middleware/auth.ts's attachSession +
+// requireAuth), never from a client-supplied header/query/body value. The
+// old getRequesterId() header/query/body extraction and the
+// checkRequester() missing/inactive lookup are both removed — they are no
+// longer meaningful once identity is session-derived, since attachSession
+// already refuses to attach req.user for a missing or inactive account
+// (see middleware/auth.ts). What used to be tested here as "AC-11: reject
+// for missing/inactive requesterId" is now covered at the login boundary
+// instead (an inactive account cannot obtain a session in the first
+// place) — see server/tests/lab-03/authorization.api.test.ts.
 
 // Helper: Generate a unique ticket number in the required TKT-YYYY-XXXXXX
 // format (see specification.md BR-01 and api-spec.md examples). The
@@ -176,10 +156,7 @@ const isDuplicateSubmission = (key: string): boolean => {
 
 // 1. GET /api/tickets (Paginated & Filtered)
 ticketsRouter.get("/", async (req: Request, res: Response) => {
-  const requesterId = getRequesterId(req);
-  if (!requesterId) {
-    return res.status(400).json({ error: "Requester identity is required" });
-  }
+  const requesterId = req.user!.id;
 
   try {
     const {
@@ -317,10 +294,7 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
     });
   }
 
-  const requesterId = getRequesterId(req);
-  if (!requesterId) {
-    return res.status(400).json({ error: "Requester identity is required" });
-  }
+  const requesterId = req.user!.id;
 
   const submissionKey = duplicateSubmissionKey(requesterId, summary, description);
   if (isDuplicateSubmission(submissionKey)) {
@@ -330,18 +304,6 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
   }
 
   try {
-    // Enforce AC-11: reject ticket creation for a missing/inactive requester,
-    // even if the request bypasses the UI selector.
-    const requesterCheck = await checkRequester(requesterId);
-    if (requesterCheck.status === "missing") {
-      return res.status(404).json({ error: "Requester not found" });
-    }
-    if (requesterCheck.status === "inactive") {
-      return res.status(403).json({
-        error: "This Development Requester is inactive and cannot create tickets",
-      });
-    }
-
     // Validate that Category and Related System exist and are active,
     // rather than letting an invalid foreign key fall through to a
     // generic 500 error.
@@ -362,11 +324,13 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
       categoryId: categoryIdNum,
       relatedSystemId: relatedSystemIdNum,
       requestedPriority,
-      // IT Priority is a separate, IT-Staff-assigned value (Figure 1 shows
-      // it can differ from Requested Priority) and is out of scope for
-      // Requester-facing Lab 2. It must default independently rather than
-      // mirroring whatever the Requester picked.
-      itPriority: "MEDIUM",
+      // BR-14 (fixed from a Lab 2 bug — see api-spec.md §0): IT Priority
+      // must copy Requested Priority at creation time, not default to a
+      // hardcoded value independent of what the Requester submitted. IT
+      // Staff/Administrator can change it later via
+      // PATCH /api/staff/tickets/:id/priority; this initial value is only
+      // the starting point.
+      itPriority: requestedPriority,
       currentStatus: "NEW",
       summary: summary.trim(),
       description: description.trim(),
@@ -384,10 +348,7 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
 
 // 3. GET /api/tickets/:id (Ticket Details)
 ticketsRouter.get("/:id", async (req: Request, res: Response) => {
-  const requesterId = getRequesterId(req);
-  if (!requesterId) {
-    return res.status(400).json({ error: "Requester identity is required" });
-  }
+  const requesterId = req.user!.id;
 
   const ticketId = Number(req.params.id);
   if (isNaN(ticketId)) {
@@ -413,6 +374,18 @@ ticketsRouter.get("/:id", async (req: Request, res: Response) => {
             createdAt: true,
           },
         },
+        publicComments: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            author: { select: { id: true, name: true, role: true } },
+          },
+        },
+        // internalNotes deliberately NOT included here (BR-04/BR-22) — this
+        // route is reachable by a Requester, who must never receive note
+        // content or even learn how many notes exist.
       },
     });
 
@@ -420,9 +393,13 @@ ticketsRouter.get("/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Ticket not found" });
     }
 
-    // Strict Ownership Check
+    // Lab 3 (FR-07/AC-28): a ticket that exists but belongs to someone else
+    // returns the SAME 404 as a genuinely nonexistent id — changed from
+    // Lab 2's 403 here specifically so a Requester can never learn that a
+    // given ticket id exists at all if it isn't theirs. See api-spec.md §0
+    // and §3's migration note for why this differs from Lab 2's behavior.
     if (ticket.requesterId !== requesterId) {
-      return res.status(403).json({ error: "Forbidden: You do not own this ticket" });
+      return res.status(404).json({ error: "Ticket not found" });
     }
 
     // Defensive fallback: never expose a blank filename to the UI, even
@@ -465,10 +442,7 @@ ticketsRouter.post(
     });
   },
   async (req: Request, res: Response) => {
-    const requesterId = getRequesterId(req);
-    if (!requesterId) {
-      return res.status(400).json({ error: "Requester identity is required" });
-    }
+    const requesterId = req.user!.id;
 
     const ticketId = Number(req.params.id);
     if (isNaN(ticketId)) {
@@ -480,18 +454,6 @@ ticketsRouter.post(
     }
 
     try {
-      // Enforce AC-11: reject attachment upload for a missing/inactive
-      // requester, even if the request bypasses the UI selector.
-      const requesterCheck = await checkRequester(requesterId);
-      if (requesterCheck.status === "missing") {
-        return res.status(404).json({ error: "Requester not found" });
-      }
-      if (requesterCheck.status === "inactive") {
-        return res.status(403).json({
-          error: "This Development Requester is inactive and cannot upload attachments",
-        });
-      }
-
       const ticket = await prisma.ticket.findUnique({
         where: { id: ticketId },
         include: {
@@ -505,9 +467,10 @@ ticketsRouter.post(
         return res.status(404).json({ error: "Ticket not found" });
       }
 
-      // Strict Ownership Check
+      // Lab 3: 404, not 403, for a ticket that exists but isn't yours — see
+      // the matching change in GET /api/tickets/:id above.
       if (ticket.requesterId !== requesterId) {
-        return res.status(403).json({ error: "Forbidden: You do not own this ticket" });
+        return res.status(404).json({ error: "Ticket not found" });
       }
 
       // Max 5 active attachments limit
@@ -536,16 +499,142 @@ ticketsRouter.post(
   }
 );
 
+// 5. PATCH /api/tickets/:id/resolved-flag (Lab 3, FR-11/BR-05)
+// A Requester may flag that the problem appears resolved, but this never
+// touches currentStatus — only IT Staff/Administrator can formally set
+// Resolved/Closed, via PATCH /api/staff/tickets/:id/status.
+ticketsRouter.patch("/:id/resolved-flag", async (req: Request, res: Response) => {
+  const requesterId = req.user!.id;
+
+  const ticketId = Number(req.params.id);
+  if (isNaN(ticketId)) {
+    return res.status(400).json({ error: "Invalid ticket ID" });
+  }
+
+  const { problemAppearsResolved } = req.body ?? {};
+  if (typeof problemAppearsResolved !== "boolean") {
+    return res.status(400).json({
+      error: "problemAppearsResolved must be a boolean",
+      field: "problemAppearsResolved",
+    });
+  }
+
+  try {
+    const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+    if (!ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+    if (ticket.requesterId !== requesterId) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: { problemAppearsResolved },
+    });
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to update ticket" });
+  }
+});
+
+// 6. GET/POST /api/tickets/:id/comments (Lab 3, BR-04/BR-23/BR-24)
+// Reachable by the ticket's Requester (owner only) AND by any IT Staff /
+// Administrator session (no ownership restriction for staff — matches
+// GET /api/staff/tickets/:id). Append-only: no PATCH/DELETE route exists
+// for a comment id at all (FR-22).
+const MAX_COMMENT_LENGTH = 2000;
+
+async function loadTicketForCommentAccess(
+  ticketId: number,
+  user: { id: number; role: string }
+) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) return { ticket: null as null, allowed: false };
+  if (user.role === "REQUESTER") {
+    return { ticket, allowed: ticket.requesterId === user.id };
+  }
+  // IT_STAFF and ADMINISTRATOR: no ownership restriction (shared queue).
+  return { ticket, allowed: true };
+}
+
+ticketsRouter.get("/:id/comments", async (req: Request, res: Response) => {
+  const ticketId = Number(req.params.id);
+  if (isNaN(ticketId)) {
+    return res.status(400).json({ error: "Invalid ticket ID" });
+  }
+
+  const { ticket, allowed } = await loadTicketForCommentAccess(ticketId, req.user!);
+  if (!ticket || !allowed) {
+    // Existence-hiding (FR-07/AC-28): identical response whether the
+    // ticket doesn't exist or simply isn't this Requester's.
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+
+  const comments = await prisma.publicComment.findMany({
+    where: { ticketId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      author: { select: { id: true, name: true, role: true } },
+    },
+  });
+
+  return res.status(200).json(comments);
+});
+
+ticketsRouter.post("/:id/comments", async (req: Request, res: Response) => {
+  const ticketId = Number(req.params.id);
+  if (isNaN(ticketId)) {
+    return res.status(400).json({ error: "Invalid ticket ID" });
+  }
+
+  const { content } = req.body ?? {};
+  if (!content || typeof content !== "string" || content.trim().length === 0) {
+    return res.status(400).json({ error: "Content is required", field: "content" });
+  }
+  if (content.length > MAX_COMMENT_LENGTH) {
+    return res.status(400).json({
+      error: `Content must be ${MAX_COMMENT_LENGTH.toLocaleString()} characters or fewer`,
+      field: "content",
+    });
+  }
+
+  const { ticket, allowed } = await loadTicketForCommentAccess(ticketId, req.user!);
+  if (!ticket || !allowed) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+
+  // BR-24: authorId is always the session's own id — any authorId/createdAt
+  // present in the request body is ignored, never merely overwritten in a
+  // way that could look like accepted input.
+  const comment = await prisma.publicComment.create({
+    data: {
+      ticketId,
+      authorId: req.user!.id,
+      content: content.trim(),
+    },
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      author: { select: { id: true, name: true, role: true } },
+    },
+  });
+
+  return res.status(201).json(comment);
+});
+
 // ==========================================
 // ATTACHMENTS ROUTER (/api/attachments)
 // ==========================================
 
 // 5. DELETE /api/attachments/:id (Soft Remove)
 attachmentsRouter.delete("/:id", async (req: Request, res: Response) => {
-  const requesterId = getRequesterId(req);
-  if (!requesterId) {
-    return res.status(400).json({ error: "Requester identity is required" });
-  }
+  const requesterId = req.user!.id;
 
   const attachmentId = Number(req.params.id);
   const { removalReason } = req.body;
@@ -572,11 +661,9 @@ attachmentsRouter.delete("/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Attachment not found" });
     }
 
-    // Ownership Check
+    // Lab 3: 404, not 403 — see the matching change on the ticket routes above.
     if (attachment.ticket.requesterId !== requesterId) {
-      return res.status(403).json({
-        error: "Forbidden: You do not own this attachment",
-      });
+      return res.status(404).json({ error: "Attachment not found" });
     }
 
     if (attachment.isRemoved) {
@@ -600,10 +687,7 @@ attachmentsRouter.delete("/:id", async (req: Request, res: Response) => {
 
 // 6. GET /api/attachments/:id (Attachment Metadata)
 attachmentsRouter.get("/:id", async (req: Request, res: Response) => {
-  const requesterId = getRequesterId(req);
-  if (!requesterId) {
-    return res.status(400).json({ error: "Requester identity is required" });
-  }
+  const requesterId = req.user!.id;
 
   const attachmentId = Number(req.params.id);
   if (isNaN(attachmentId)) {
@@ -625,9 +709,7 @@ attachmentsRouter.get("/:id", async (req: Request, res: Response) => {
     }
 
     if (attachment.ticket.requesterId !== requesterId) {
-      return res.status(403).json({
-        error: "Forbidden: You do not own this attachment",
-      });
+      return res.status(404).json({ error: "Attachment not found" });
     }
 
     return res.status(200).json({
@@ -650,10 +732,7 @@ attachmentsRouter.get("/:id", async (req: Request, res: Response) => {
 
 // 6. GET /api/attachments/:id/download (Download Stream)
 attachmentsRouter.get("/:id/download", async (req: Request, res: Response) => {
-  const requesterId = getRequesterId(req);
-  if (!requesterId) {
-    return res.status(400).json({ error: "Requester identity is required" });
-  }
+  const requesterId = req.user!.id;
 
   const attachmentId = Number(req.params.id);
   if (isNaN(attachmentId)) {
@@ -670,11 +749,9 @@ attachmentsRouter.get("/:id/download", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Attachment not found" });
     }
 
-    // Ownership Check
+    // Lab 3: 404, not 403 — see the matching change on the ticket routes above.
     if (attachment.ticket.requesterId !== requesterId) {
-      return res.status(403).json({
-        error: "Forbidden: You do not own this attachment",
-      });
+      return res.status(404).json({ error: "Attachment not found" });
     }
 
     // Block download if soft-removed

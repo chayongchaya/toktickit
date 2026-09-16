@@ -1,5 +1,56 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+// Lab 3: every authenticated call must send the session cookie. Public,
+// pre-login calls (like /api/health or the auth calls below) also set this
+// harmlessly — the browser simply has no cookie to send yet on first login.
+const CREDENTIALS: RequestCredentials = "include";
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  role: "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+  mustChangePassword: boolean;
+}
+
+export interface AdminUser extends AuthUser {
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AdminUserInput {
+  name: string;
+  email: string;
+  role: AuthUser["role"];
+  isActive: boolean;
+  initialPassword?: string;
+}
+
+export async function getAdminUsers(search = "", role = ""): Promise<AdminUser[]> {
+  const query = new URLSearchParams();
+  if (search) query.set("search", search);
+  if (role) query.set("role", role);
+  const res = await fetch(`${API_URL}/api/admin/users?${query.toString()}`, { credentials: CREDENTIALS });
+  return handleResponse<AdminUser[]>(res, "Failed to load users.");
+}
+
+export async function createAdminUser(input: AdminUserInput & { initialPassword: string }): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/api/admin/users`, { method: "POST", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  return handleResponse<AdminUser>(res, "Failed to create user.");
+}
+
+export async function updateAdminUser(id: number, input: Partial<AdminUserInput>): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}`, { method: "PATCH", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  return handleResponse<AdminUser>(res, "Failed to update user.");
+}
+
+export async function resetAdminUserPassword(id: number, newInitialPassword: string): Promise<{ mustChangePassword: boolean }> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/reset-password`, { method: "POST", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newInitialPassword }) });
+  return handleResponse<{ mustChangePassword: boolean }>(res, "Failed to reset password.");
+}
+
+
 export interface Category {
   id: number;
   name: string;
@@ -26,8 +77,25 @@ export interface Attachment {
   fileSize: number;
   mimeType?: string;
   isRemoved: boolean;
+  isUnavailable?: boolean;
   removalReason?: string | null;
   createdAt?: string;
+}
+
+// PublicComment as returned by GET/POST /api/tickets/:id/comments.
+export interface PublicComment {
+  id: number;
+  content: string;
+  createdAt: string;
+  author: { id: number; name: string; role: string };
+}
+
+export interface InternalNote {
+  id: number;
+  ticketId: number;
+  content: string;
+  createdAt: string;
+  author: { id: number; name: string; role: string };
 }
 
 export interface Ticket {
@@ -40,6 +108,7 @@ export interface Ticket {
   currentStatus: string;
   createdAt: string;
   updatedAt: string;
+  problemAppearsResolved?: boolean;
   requesterId?: number;
   requester?: RequesterUser;
   categoryId?: number;
@@ -47,6 +116,10 @@ export interface Ticket {
   relatedSystemId?: number;
   relatedSystem?: RelatedSystem;
   attachments?: Attachment[];
+  publicComments?: PublicComment[];
+  internalNotes?: InternalNote[];
+  ownerId?: number | null;
+  ownerName?: string | null;
 }
 
 export interface Pagination {
@@ -59,6 +132,61 @@ export interface Pagination {
 export interface TicketsResponse {
   data: Ticket[];
   pagination: Pagination;
+}
+
+export interface StaffTicketListParams {
+  search?: string;
+  status?: string;
+  category?: number | string;
+  requestedPriority?: string;
+  itPriority?: string;
+  owner?: number | string;
+  sort?: "createdAt" | "updatedAt" | "itPriority";
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export async function getStaffOwners(): Promise<RequesterUser[]> {
+  const res = await fetch(`${API_URL}/api/staff/owners`, { credentials: CREDENTIALS });
+  return handleResponse<RequesterUser[]>(res, "Failed to load ticket owners.");
+}
+
+export async function getStaffTickets(params: StaffTicketListParams = {}): Promise<TicketsResponse> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  });
+  const res = await fetch(`${API_URL}/api/staff/tickets?${query.toString()}`, { credentials: CREDENTIALS });
+  return handleResponse<TicketsResponse>(res, "Failed to load staff ticket queue.");
+}
+
+export async function getStaffTicket(id: number | string): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${id}`, { credentials: CREDENTIALS });
+  return handleResponse<Ticket>(res, "Failed to load staff ticket detail.");
+}
+
+async function patchStaffTicket(id: number | string, path: string, body: unknown): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${id}/${path}`, {
+    method: "PATCH", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  return handleResponse<Ticket>(res, "Failed to update staff ticket.");
+}
+
+export const updateStaffTicketOwner = (id: number | string, ownerId: number) => patchStaffTicket(id, "owner", { ownerId });
+export const updateStaffTicketPriority = (id: number | string, itPriority: string) => patchStaffTicket(id, "priority", { itPriority });
+export const updateStaffTicketStatus = (id: number | string, currentStatus: string) => patchStaffTicket(id, "status", { currentStatus });
+
+export async function getInternalNotes(ticketId: number | string): Promise<InternalNote[]> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/notes`, { credentials: CREDENTIALS });
+  return handleResponse<InternalNote[]>(res, "Failed to load internal notes.");
+}
+
+export async function postInternalNote(ticketId: number | string, content: string): Promise<InternalNote> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/notes`, {
+    method: "POST", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
+  });
+  return handleResponse<InternalNote>(res, "Failed to post internal note.");
 }
 
 export interface SystemStatus {
@@ -85,13 +213,25 @@ export interface TicketListParams {
   pageSize?: number;
 }
 
+export class ApiError extends Error {
+  field?: string;
+  status: number;
+  constructor(message: string, status: number, field?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.field = field;
+  }
+}
+
 async function handleResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     const message =
       (body && typeof body === "object" && "error" in body && body.error) ||
       fallbackMessage;
-    throw new Error(message);
+    const field = body && typeof body === "object" && "field" in body ? body.field : undefined;
+    throw new ApiError(message, res.status, field);
   }
   return body as T;
 }
@@ -114,18 +254,8 @@ export async function getSystems(): Promise<RelatedSystem[]> {
   return handleResponse<RelatedSystem[]>(res, "Failed to fetch related systems.");
 }
 
-export async function getRequesters(): Promise<RequesterUser[]> {
-  const res = await fetch(`${API_URL}/api/requesters`);
-  return handleResponse<RequesterUser[]>(res, "Failed to fetch requesters.");
-}
-
-export async function getTickets(
-  requesterId: number,
-  params: TicketListParams = {}
-): Promise<TicketsResponse> {
-  const queryParams: Record<string, string> = {
-    requesterId: requesterId.toString(),
-  };
+export async function getTickets(params: TicketListParams = {}): Promise<TicketsResponse> {
+  const queryParams: Record<string, string> = {};
   if (params.search) queryParams.search = params.search;
   if (params.categoryId != null) queryParams.categoryId = String(params.categoryId);
   if (params.requestedPriority) queryParams.requestedPriority = params.requestedPriority;
@@ -136,66 +266,126 @@ export async function getTickets(
   if (params.pageSize != null) queryParams.pageSize = String(params.pageSize);
 
   const query = new URLSearchParams(queryParams);
+  // Lab 3: no requesterId param and no x-requester-id header — the session
+  // cookie (credentials: "include") is the only identity the server trusts
+  // (BR-03). The server derives "my tickets" from req.user.id.
   const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
-    headers: { "x-requester-id": requesterId.toString() },
+    credentials: CREDENTIALS,
   });
   return handleResponse<TicketsResponse>(res, "Failed to fetch tickets.");
 }
 
-export async function getTicketById(id: number | string, requesterId: number): Promise<Ticket> {
-  const res = await fetch(`${API_URL}/api/tickets/${id}`, {
-    headers: { "x-requester-id": requesterId.toString() },
-  });
+export async function getTicketById(id: number | string): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/tickets/${id}`, { credentials: CREDENTIALS });
   return handleResponse<Ticket>(res, "Failed to fetch ticket detail.");
 }
 
-export async function createTicket(
-  ticketData: CreateTicketInput,
-  requesterId: number
-): Promise<Ticket> {
+export async function createTicket(ticketData: CreateTicketInput): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-requester-id": requesterId.toString(),
-    },
-    body: JSON.stringify({ ...ticketData, requesterId }),
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(ticketData),
   });
   return handleResponse<Ticket>(res, "Failed to create ticket.");
 }
 
-export async function uploadAttachment(
-  ticketId: number | string,
-  file: File,
-  requesterId: number
-): Promise<Attachment> {
+export async function uploadAttachment(ticketId: number | string, file: File): Promise<Attachment> {
   const formData = new FormData();
   formData.append("file", file);
 
-  // Keep the existing FormData contract expected by the component test,
-  // while also sending the requester identity in the standard header.
-  formData.append("requesterId", String(requesterId));
-
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
     method: "POST",
-    headers: { "x-requester-id": requesterId.toString() },
+    credentials: CREDENTIALS,
     body: formData,
   });
   return handleResponse<Attachment>(res, `Failed to upload "${file.name}".`);
 }
 
-export async function deleteAttachment(
-  attachmentId: number,
-  removalReason: string,
-  requesterId: number
-): Promise<Attachment> {
+export async function deleteAttachment(attachmentId: number, removalReason: string): Promise<Attachment> {
   const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
     method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      "x-requester-id": requesterId.toString(),
-    },
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ removalReason }),
   });
   return handleResponse<Attachment>(res, "Failed to remove attachment.");
+}
+
+// --- Lab 3: Public Comments and the Requester's "problem appears resolved" flag ---
+
+export async function getPublicComments(ticketId: number | string): Promise<PublicComment[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/comments`, { credentials: CREDENTIALS });
+  return handleResponse<PublicComment[]>(res, "Failed to load comments.");
+}
+
+export async function postPublicComment(
+  ticketId: number | string,
+  content: string
+): Promise<PublicComment> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/comments`, {
+    method: "POST",
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  return handleResponse<PublicComment>(res, "Failed to post comment.");
+}
+
+export async function setProblemAppearsResolved(
+  ticketId: number | string,
+  problemAppearsResolved: boolean
+): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/resolved-flag`, {
+    method: "PATCH",
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ problemAppearsResolved }),
+  });
+  return handleResponse<Ticket>(res, "Failed to update ticket.");
+}
+
+// --- Lab 3: Authentication -------------------------------------------------
+
+export async function login(email: string, password: string): Promise<AuthUser> {
+  const res = await fetch(`${API_URL}/api/auth/login`, {
+    method: "POST",
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  return handleResponse<AuthUser>(res, "Login failed.");
+}
+
+export async function logout(): Promise<void> {
+  const res = await fetch(`${API_URL}/api/auth/logout`, {
+    method: "POST",
+    credentials: CREDENTIALS,
+  });
+  if (!res.ok && res.status !== 401) {
+    // A 401 here just means "already logged out" from the server's point of
+    // view — nothing to surface to the user as an error.
+    await handleResponse<void>(res, "Logout failed.");
+  }
+}
+
+// Returns null (rather than throwing) for a 401, since "not logged in" is
+// the normal, expected first-load state for this call, not an error.
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const res = await fetch(`${API_URL}/api/auth/me`, { credentials: CREDENTIALS });
+  if (res.status === 401) return null;
+  return handleResponse<AuthUser>(res, "Failed to load current user.");
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ mustChangePassword: boolean }> {
+  const res = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: "POST",
+    credentials: CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return handleResponse<{ mustChangePassword: boolean }>(res, "Failed to change password.");
 }

@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { checkSystem, Category } from "./api.js";
-import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
+import { AuthProvider, useAuth } from "./context/AuthContext.js";
 import { Navbar } from "./components/Navbar.js";
-import { SelectRequesterPage } from "./pages/SelectRequesterPage.js";
+import { LoginPage } from "./pages/LoginPage.js";
+import { ChangePasswordPage } from "./pages/ChangePasswordPage.js";
 import { CreateTicketPage } from "./pages/CreateTicketPage.js";
 import { TicketListPage } from "./pages/TicketListPage.js";
 import { TicketDetailPage } from "./pages/TicketDetailPage.js";
+import { StaffTicketQueuePage } from "./pages/staff/StaffTicketQueuePage.js";
+import { StaffTicketDetailPage } from "./pages/staff/StaffTicketDetailPage.js";
+import { UserManagementPage } from "./pages/admin/UserManagementPage.js";
 
 type UiState = "idle" | "loading" | "success" | "error";
 
@@ -64,15 +68,26 @@ function Lab1Screen() {
   );
 }
 
+// Replaces the Lab 2 ProtectedLayout that gated on RequesterContext. Gates
+// on the authenticated session instead (FR-08), and additionally enforces
+// the mandatory-password-change block on the client side (BR-02) — this is
+// a UX convenience only; the real enforcement is server-side
+// (blockIfMustChangePassword in every protected API route), per the
+// handout's "hiding a button is not authorization" instruction.
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const { currentRequester, loading } = useRequester();
+  const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
-    return <div className="p-5 text-center">Loading user context...</div>;
+    return <div className="p-5 text-center text-muted">Checking session…</div>;
   }
 
-  if (!currentRequester) {
-    return <Navigate to="/select-requester" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (user.mustChangePassword) {
+    return <Navigate to="/change-password" replace />;
   }
 
   return (
@@ -83,46 +98,74 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function StaffOnlyLayout({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-5 text-center text-muted">Checking session...</div>;
+  if (!user || (user.role !== "IT_STAFF" && user.role !== "ADMINISTRATOR")) {
+    return <Navigate to={user ? "/tickets" : "/login"} replace />;
+  }
+  return <ProtectedLayout>{children}</ProtectedLayout>;
+}
+
+function RequesterOnlyLayout({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-5 text-center text-muted">Checking session...</div>;
+  if (!user || user.role !== "REQUESTER") {
+    return <Navigate to={user ? "/queue" : "/login"} replace />;
+  }
+  return <ProtectedLayout>{children}</ProtectedLayout>;
+}
+
+function AdminOnlyLayout({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-5 text-center text-muted">Checking session...</div>;
+  if (!user || user.role !== "ADMINISTRATOR") return <Navigate to={user ? "/tickets" : "/login"} replace />;
+  return <ProtectedLayout>{children}</ProtectedLayout>;
+}
+
 export default function App() {
   return (
-    <RequesterProvider>
+    <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* หน้าแรกสุดของระบบ: วิ่งไปหน้า Select Requester เสมอ */}
-          <Route path="/" element={<Navigate to="/select-requester" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/lab1" element={<Lab1Screen />} />
-          <Route path="/select-requester" element={<SelectRequesterPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/change-password" element={<ChangePasswordPage />} />
 
           {/* Protected Routes สำหรับระบบตั๋ว */}
           <Route
             path="/tickets"
             element={
-              <ProtectedLayout>
+              <RequesterOnlyLayout>
                 <TicketListPage />
-              </ProtectedLayout>
+              </RequesterOnlyLayout>
             }
           />
           <Route
             path="/tickets/new"
             element={
-              <ProtectedLayout>
+              <RequesterOnlyLayout>
                 <CreateTicketPage />
-              </ProtectedLayout>
+              </RequesterOnlyLayout>
             }
           />
           <Route
             path="/tickets/:id"
             element={
-              <ProtectedLayout>
+              <RequesterOnlyLayout>
                 <TicketDetailPage />
-              </ProtectedLayout>
+              </RequesterOnlyLayout>
             }
           />
+          <Route path="/queue" element={<StaffOnlyLayout><StaffTicketQueuePage /></StaffOnlyLayout>} />
+          <Route path="/queue/:id" element={<StaffOnlyLayout><StaffTicketDetailPage /></StaffOnlyLayout>} />
+          <Route path="/admin/users" element={<AdminOnlyLayout><UserManagementPage /></AdminOnlyLayout>} />
 
           {/* Catch-all Route: ต้องอยู่บรรทัดสุดท้าย */}
-          <Route path="*" element={<Navigate to="/select-requester" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
-    </RequesterProvider>
+    </AuthProvider>
   );
 }
