@@ -80,12 +80,16 @@ describe("Lab 3 administrator user management", () => {
   });
 
   it("returns 403 to Requesters and IT Staff and 404 for unknown users", async () => {
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
+    const requester = await prisma.user.create({ data: { name: "Admin Authorization Requester", email: uniqueEmail("admin-authorization-requester"), role: "REQUESTER", isActive: true, passwordHash: await hashPassword("DevPass123!"), mustChangePassword: false } });
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
-    expect((await request(app).get("/api/admin/users").set("Cookie", await loginAs(app, requester.email))).status).toBe(403);
-    expect((await request(app).get("/api/admin/users").set("Cookie", await loginAs(app, staff.email))).status).toBe(403);
-    const admin = await prisma.user.findFirstOrThrow({ where: { role: "ADMINISTRATOR", isActive: true } });
-    expect((await request(app).patch("/api/admin/users/999999/reset-password").set("Cookie", await loginAs(app, admin.email)).send({ newInitialPassword: "ResetPass1!" })).status).toBe(404);
+    try {
+      expect((await request(app).get("/api/admin/users").set("Cookie", await loginAs(app, requester.email))).status).toBe(403);
+      expect((await request(app).get("/api/admin/users").set("Cookie", await loginAs(app, staff.email))).status).toBe(403);
+      const admin = await prisma.user.findFirstOrThrow({ where: { role: "ADMINISTRATOR", isActive: true } });
+      expect((await request(app).patch("/api/admin/users/999999/reset-password").set("Cookie", await loginAs(app, admin.email)).send({ newInitialPassword: "ResetPass1!" })).status).toBe(404);
+    } finally {
+      await prisma.user.delete({ where: { id: requester.id } });
+    }
   });
 
   it("keeps deactivated users in the list and has no delete route", async () => {
