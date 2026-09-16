@@ -13,7 +13,7 @@ const prisma = getPrisma();
 // (all three roles) -- the role filter is required so these tests never
 // accidentally pick an IT Staff/Administrator row.
 async function getRandomActiveRequester() {
-  const requester = await prisma.user.findFirst({ where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
+  const requester = await prisma.user.findFirst({ where: { isActive: true, role: "REQUESTER", mustChangePassword: false, email: { not: "jennifer.anderson@kmutt.ac.th" }, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
   const cookie = await loginAs(app, requester!.email);
   return { requester: requester!, cookie };
 }
