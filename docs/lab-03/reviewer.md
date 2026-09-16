@@ -64,6 +64,10 @@ The PR table above records the review and merge units. The following commit link
 
 The later merged PRs (#54, #58, #61, #63, #65, #66, #68, #70, and #72) contain the requester regression, migration, staff, administrator, E2E/visual, coverage, UI-polish, and test-isolation commits listed in the GitHub history.
 
+### Release documentation PR
+
+The release documentation is proposed in [PR #76](https://github.com/chayongchaya/toktickit/pull/76), from `feature/lab3-release-docs` into `lab3-staging`, at commit [`9c8c28d`](https://github.com/chayongchaya/toktickit/commit/9c8c28da38f21716731c223d30e274d5de807f5f). The PR is open and awaiting review/merge.
+
 ### Release into `main`
 
 | PR # | Title | Branch → Target | Merge Commit | Reviewer | Approval Status |
