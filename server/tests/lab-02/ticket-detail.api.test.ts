@@ -20,7 +20,7 @@ describe("GET /api/tickets/:id - Requester Ticket Detail", () => {
     // Lab 3: RequesterUser -> User; role filter needed since User now also
     // holds IT Staff/Administrator rows.
     const users = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     userA = users[0];

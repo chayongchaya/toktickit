@@ -11,7 +11,7 @@ describe("IT Staff ticket queue", () => {
     const unauthenticated = await request(app).get("/api/staff/tickets");
     expect(unauthenticated.status).toBe(401);
 
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const cookie = await loginAs(app, requester.email);
     const forbidden = await request(app).get("/api/staff/tickets").set("Cookie", cookie);
     expect(forbidden.status).toBe(403);

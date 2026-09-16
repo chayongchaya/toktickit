@@ -13,7 +13,7 @@ const prisma = getPrisma();
 // (all three roles) -- the role filter is required so these tests never
 // accidentally pick an IT Staff/Administrator row.
 async function getRandomActiveRequester() {
-  const requester = await prisma.user.findFirst({ where: { isActive: true, role: "REQUESTER" } });
+  const requester = await prisma.user.findFirst({ where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
   const cookie = await loginAs(app, requester!.email);
   return { requester: requester!, cookie };
 }
@@ -100,7 +100,7 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
   it("GET /api/tickets/:id should return 404 when requester does not own the ticket (Lab 3: existence-hiding, not 403)", async () => {
     const requesters = await prisma.user.findMany({
-      where: { isActive: true, role: "REQUESTER" },
+      where: { isActive: true, role: "REQUESTER", mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } },
       take: 2,
     });
     const category = await prisma.category.findFirst({ where: { isActive: true } });

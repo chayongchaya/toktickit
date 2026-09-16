@@ -8,6 +8,7 @@ import {
   getPublicComments,
   postPublicComment,
   setProblemAppearsResolved,
+  ApiError,
   type Ticket,
   type PublicComment,
 } from "../api.js";
@@ -82,9 +83,11 @@ export const TicketDetailPage: React.FC = () => {
       if (!isActive()) return;
 
       setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to fetch ticket detail."
+        err instanceof ApiError && err.status === 404
+          ? "Ticket not found"
+          : err instanceof ApiError && err.status === 403
+            ? "You are not allowed to view this ticket."
+            : "Unable to load ticket details.",
       );
       setTicket(null);
     } finally {
@@ -391,7 +394,7 @@ export const TicketDetailPage: React.FC = () => {
   if (error || !ticket) {
     return (
       <div className="container py-5" style={{ maxWidth: 600 }}>
-        <div className="alert alert-danger">
+        <div className="alert alert-danger" role="alert">
           {error || "Ticket not found"}
         </div>
 

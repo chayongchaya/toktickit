@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
@@ -65,6 +65,14 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(400);
     expect(res.body.field).toBe("password");
   });
+
+  it("BR-07: returns the same generic 401 for repeated failed attempts", async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () => request(app).post("/api/auth/login").send({ email: ACTIVE_REQUESTER_EMAIL, password: "WrongPassword1!" }))
+    );
+    expect(responses.every((response) => response.status === 401)).toBe(true);
+    expect(new Set(responses.map((response) => response.body.error))).toEqual(new Set(["Invalid email or password."]));
+  });
 });
 
 describe("GET /api/auth/me", () => {
@@ -100,6 +108,27 @@ describe("POST /api/auth/logout", () => {
   });
 });
 
+describe("live session activation checks", () => {
+  it("AC-27: rejects a deactivated user's existing session on the next request", async () => {
+    const admin = await prisma.user.findFirstOrThrow({ where: { role: "ADMINISTRATOR", isActive: true } });
+    const email = `live-session-${Date.now()}@example.com`;
+    const user = await prisma.user.create({
+      data: { name: "Live Session Fixture", email, role: "REQUESTER", isActive: true, passwordHash: await hashPassword(SEED_PASSWORD), mustChangePassword: false },
+    });
+    const userLogin = await request(app).post("/api/auth/login").send({ email, password: SEED_PASSWORD });
+    const userCookie = extractSessionCookie(userLogin);
+    const adminCookie = extractSessionCookie(await request(app).post("/api/auth/login").send({ email: admin.email, password: SEED_PASSWORD }));
+
+    try {
+      const deactivated = await request(app).patch(`/api/admin/users/${user.id}`).set("Cookie", adminCookie).send({ isActive: false });
+      expect(deactivated.status).toBe(200);
+      expect((await request(app).get("/api/auth/me").set("Cookie", userCookie)).status).toBe(401);
+    } finally {
+      await prisma.user.delete({ where: { id: user.id } });
+    }
+  });
+});
+
 describe("POST /api/auth/change-password and the mandatory-change gate", () => {
   // This flow needs a user with mustChangePassword=true, which no seeded
   // account has (seed.ts seeds already-known local-dev credentials, not
@@ -118,6 +147,10 @@ describe("POST /api/auth/change-password and the mandatory-change gate", () => {
         passwordHash: await hashPassword(TEMP_PASSWORD),
       },
     });
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({ where: { email } });
   });
 
   it("FR-05: a user who must change their password is blocked from a normal protected route", async () => {

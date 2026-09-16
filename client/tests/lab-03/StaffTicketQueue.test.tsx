@@ -44,6 +44,25 @@ describe("StaffTicketQueuePage", () => {
     await waitFor(() => expect(getStaffTickets).toHaveBeenLastCalledWith(expect.objectContaining({ search: "VPN", status: "OPEN", requestedPriority: "HIGH", page: 1 })));
   });
 
+  it("sorts by created date and toggles the sort direction", async () => {
+    render(<BrowserRouter><StaffTicketQueuePage /></BrowserRouter>);
+    await waitFor(() => expect(getStaffTickets).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: /Created/ }));
+    await waitFor(() => expect(getStaffTickets).toHaveBeenLastCalledWith(expect.objectContaining({ sort: "createdAt", sortOrder: "asc", page: 1 })));
+    fireEvent.click(screen.getByRole("button", { name: /Created/ }));
+    await waitFor(() => expect(getStaffTickets).toHaveBeenLastCalledWith(expect.objectContaining({ sort: "createdAt", sortOrder: "desc", page: 1 })));
+  });
+
+  it("requests the next page and selected page size", async () => {
+    getStaffTickets.mockResolvedValue({ ...response, pagination: { total: 25, page: 1, pageSize: 10, totalPages: 3 } });
+    render(<BrowserRouter><StaffTicketQueuePage /></BrowserRouter>);
+    await waitFor(() => expect(screen.getByText("Page 1 of 3")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(getStaffTickets).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, pageSize: 10 })));
+    fireEvent.change(screen.getByLabelText("Page size"), { target: { value: "20" } });
+    await waitFor(() => expect(getStaffTickets).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, pageSize: 20 })));
+  });
+
   it("distinguishes no-results from an empty queue", async () => {
     getStaffTickets.mockResolvedValue({ data: [], pagination: { total: 0, page: 1, pageSize: 10, totalPages: 1 } });
     render(<BrowserRouter><StaffTicketQueuePage /></BrowserRouter>);

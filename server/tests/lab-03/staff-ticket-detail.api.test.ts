@@ -17,7 +17,7 @@ describe("IT Staff ticket detail and operations", () => {
 
   it("claims and rejects invalid ticket owners", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const ticket = await prisma.ticket.findFirstOrThrow({ where: { ownerId: null } });
     const cookie = await loginAs(app, staff.email);
     const claim = await request(app).patch(`/api/staff/tickets/${ticket.id}/owner`).set("Cookie", cookie).send({ ownerId: staff.id });
@@ -64,7 +64,7 @@ describe("IT Staff ticket detail and operations", () => {
   });
 
   it("rejects a Requester attempting to change status directly", async () => {
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const ticket = await prisma.ticket.findFirstOrThrow();
     const response = await request(app).patch(`/api/staff/tickets/${ticket.id}/status`).set("Cookie", await loginAs(app, requester.email)).send({ currentStatus: "OPEN" });
     expect(response.status).toBe(403);
@@ -93,7 +93,7 @@ describe("IT Staff ticket detail and operations", () => {
 
   it("allows staff notes and blocks Requesters without leaking note data", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
-    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const ticket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
     const staffCookie = await loginAs(app, staff.email);
     const requesterCookie = await loginAs(app, requester.email);
