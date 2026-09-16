@@ -114,6 +114,10 @@ between Public Comments and Internal Notes, full user flows).
 | E2E-04 | AC-13, AC-14, AC-18 | E2E | Admin searches users, creates one, triggers a duplicate-email error, resets a password | Inline error then success; the password-reset user is forced through Change Password on next login | `e2e/lab-03/user-administration.spec.ts` | Pass |
 | E2E-05 | AC-11, AC-12 | E2E | Admin attempts self-deactivation and attempts to deactivate the last remaining Administrator | Both attempts blocked with a visible conflict message; account states unchanged | `e2e/lab-03/user-administration.spec.ts` | Pass |
 
+### E2E-03 stability revalidation
+
+After an intermittent failure caused by the requester route guard redirecting during session initialization, E2E-03 was revalidated on `chore/lab3-e2e-stability`. The fix waits for authentication loading to finish before applying role guards and uses an isolated requester fixture. The focused Staff workflow passed `1/1`, and PR #74 merged the fix into `lab3-staging`.
+
 ## 3. Acceptance-Criterion Traceability
 
 | AC ID | Description (short) | Covered By |
