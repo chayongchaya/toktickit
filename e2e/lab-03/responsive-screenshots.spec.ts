@@ -26,6 +26,8 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
 async function capture(page: import("@playwright/test").Page, section: string, project: string) {
   const directory = path.join(root, section);
   fs.mkdirSync(directory, { recursive: true });
+  // Capture the full page so visual evidence includes all responsive content,
+  // including the Create User form below the mobile user list.
   await page.screenshot({ path: path.join(directory, `${project}.png`), fullPage: true });
 }
 
@@ -57,6 +59,9 @@ test.describe("Lab 3 responsive visual evidence", () => {
   test("captures User Management", async ({ page }, testInfo) => {
     await signIn(page, admin, /.*\/admin\/users/);
     await expect(page.getByRole("heading", { name: "User Management" })).toBeVisible();
+    // Wait for the async user list before capturing evidence; otherwise the
+    // screenshot can preserve the loading skeleton instead of real names.
+    await expect(page.locator("td:visible, .d-md-none:visible", { hasText: "Kevin Patel" }).first()).toBeVisible();
     await capture(page, "user-management", testInfo.project.name);
     await expectNoHorizontalOverflow(page);
   });
