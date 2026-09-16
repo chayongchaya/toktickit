@@ -49,7 +49,7 @@ The later merged PRs (#54, #58, #61, #63, #65, #66, #68, #70, and #72) contain t
 
 | PR # | Title | Branch -> Target | Commits | Status |
 | --- | --- | --- | --- | --- |
-| [#76](https://github.com/chayongchaya/toktickit/pull/76) | docs: finalize Lab 3 release evidence | `feature/lab3-release-docs` -> `lab3-staging` | `ec5161d` (merge commit) | ✅ Approved & Merged — 2026-09-16 14:32:05 UTC |
+| [#76](https://github.com/chayongchaya/toktickit/pull/76) | docs: Comprehensive Lab 3 release documentation, AI disclosure, and review evidence | `feature/lab3-release-docs` -> `lab3-staging` | `ec5161d` (merge commit) | ✅ Approved & Merged — 2026-09-16 14:32:05 UTC |
 
 ### Release into `main`
 
@@ -77,6 +77,7 @@ The table below records the review text and the author's actual response comment
 | [#70](https://github.com/chayongchaya/toktickit/pull/70) | Great polish to wrap up Lab 3! Approved<br><br>- **Route Protection:** `RequesterOnlyLayout` cleanly redirects Staff/Admin roles to `/queue` when hitting requester routes (`/tickets`, `/tickets/new`, etc.).<br>- **UI Density & Badges:** `0.85rem` font scaling on `UserManagementPage` improves readability on mobile/desktop without text clipping, and Role Badges now match the rest of the application. | Thank you so much for the review and approval on the final UI polish! Merging this into lab3-staging now. |
 | [#72](https://github.com/chayongchaya/toktickit/pull/72) | Great fix for test suite reliability!<br><br>- **Session Collision Prevention:** Decoupling ticket creation tests from the shared "Jennifer" seed fixture eliminates intermittent 401 race conditions during concurrent test runs.<br>- **Ephemeral Test Fixtures:** Dynamic creation and teardown of temporary user fixtures in `users-admin.api.test.ts` keeps DB state predictable for 403 Forbidden assertions. | Thank you so much for the review and catching those concurrency details |
 | [#74](https://github.com/chayongchaya/toktickit/pull/74) | Approved! Excellent refactoring to eliminate race conditions across client routing and testing suites. ๐‘<br><br>- **Session Hydration & Deep Links:** Resolving premature redirects in `App.tsx` by awaiting session hydration makes deep-link navigation far more reliable.<br>- **Ephemeral Test Lifecycle:** Dynamic requester creation, handling the initial password-change requirement, and automatic post-test teardown makes the Staff E2E suite completely deterministic.<br>- **Visual Artifact Synchronization:** Waiting for full UI hydration before taking snapshots keeps the visual evidence under `artifacts/lab-03/screenshots/` accurate and free of loading state artifacts. | Thank you so much for the thoughtful review and approval |
+| [#76](https://github.com/chayongchaya/toktickit/pull/76) | Fantastic work consolidating all submission evidence!<br><br>- **Documentation Completeness:** `README.md` updates make local setup and credential testing clear and straightforward.<br>- **Traceability & Audit:** `ai-use.md` and `reviewer.md` provide a transparent prompt history and a clean PR review timeline.<br>- **Zero Code Regression:** Verified this PR is strictly documentation (+152/-1 across 4 markdown files) with no risk to application code. | Thank you so much for the thorough review and final sign-off. |
 
 ## 4. Verification Evidence
 
