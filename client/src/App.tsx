@@ -106,6 +106,14 @@ function StaffOnlyLayout({ children }: { children: React.ReactNode }) {
   return <ProtectedLayout>{children}</ProtectedLayout>;
 }
 
+function RequesterOnlyLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user || user.role !== "REQUESTER") {
+    return <Navigate to={user ? "/queue" : "/login"} replace />;
+  }
+  return <ProtectedLayout>{children}</ProtectedLayout>;
+}
+
 function AdminOnlyLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user || user.role !== "ADMINISTRATOR") return <Navigate to={user ? "/tickets" : "/login"} replace />;
@@ -126,25 +134,25 @@ export default function App() {
           <Route
             path="/tickets"
             element={
-              <ProtectedLayout>
+              <RequesterOnlyLayout>
                 <TicketListPage />
-              </ProtectedLayout>
+              </RequesterOnlyLayout>
             }
           />
           <Route
             path="/tickets/new"
             element={
-              <ProtectedLayout>
+              <RequesterOnlyLayout>
                 <CreateTicketPage />
-              </ProtectedLayout>
+              </RequesterOnlyLayout>
             }
           />
           <Route
             path="/tickets/:id"
             element={
-              <ProtectedLayout>
+              <RequesterOnlyLayout>
                 <TicketDetailPage />
-              </ProtectedLayout>
+              </RequesterOnlyLayout>
             }
           />
           <Route path="/queue" element={<StaffOnlyLayout><StaffTicketQueuePage /></StaffOnlyLayout>} />
