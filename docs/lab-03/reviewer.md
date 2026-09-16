@@ -13,41 +13,22 @@ This document is evidence for Part 1 (Git Use with Engineering Workflow) of the 
 
 The PRs below were opened by @chayongchaya, reviewed by @chayanitkunt, and merged into `lab3-staging`.
 
-| PR # | Title | Branch → Target | Merge Commit | Linked Issue | Reviewer | Approval Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| [#48](https://github.com/chayongchaya/toktickit/pull/48) | docs(lab3): add engineering specification and test plan | `docs/lab3-engineering-contract` → `lab3-staging` | `6855b0e` | [#47](https://github.com/chayongchaya/toktickit/issues/47) | @chayanitkunt | ✅ Approved & Merged |
-| [#50](https://github.com/chayongchaya/toktickit/pull/50) | feat(db): complete lab 3 schema migration, manual sql, seeding | `feature/lab3-db-migration` → `lab3-staging` | `11839c0` | [#49](https://github.com/chayongchaya/toktickit/issues/49) | @chayanitkunt | ✅ Approved & Merged |
-| [#51](https://github.com/chayongchaya/toktickit/pull/51) | feat(auth): implement authentication foundation for Lab 3 | `feature/lab3-auth-foundation` → `lab3-staging` | `6afda4f` | [#52](https://github.com/chayongchaya/toktickit/issues/52) | @chayanitkunt | ✅ Approved & Merged |
-| [#54](https://github.com/chayongchaya/toktickit/pull/54) | feat: requester regression fixes and public comments support | `feature/lab3-requester-regression` → `lab3-staging` | `f5d77aa` | [#53](https://github.com/chayongchaya/toktickit/issues/53) | @chayanitkunt | ✅ Approved & Merged |
-| [#56](https://github.com/chayongchaya/toktickit/pull/56) | chore: isolate test database from dev database | `chore/lab3-test-db-isolation` → `lab3-staging` | Supporting merge | [#55](https://github.com/chayongchaya/toktickit/issues/55) | @chayanitkunt | ✅ Approved & Merged |
-| [#58](https://github.com/chayongchaya/toktickit/pull/58) | fix: adapt lab-01/lab-02 tests to authenticated session (MIG-02/MIG-03) | `fix/lab3-requester-regression-test-migration` → `lab3-staging` | `0513a9d` | [#57](https://github.com/chayongchaya/toktickit/issues/57) | @chayanitkunt | ✅ Approved & Merged |
-| [#61](https://github.com/chayongchaya/toktickit/pull/61) | feat: IT Staff Ticket Queue | `feature/lab3-staff-queue` → `lab3-staging` | `512a5fc` | [#59](https://github.com/chayongchaya/toktickit/issues/59) | @chayanitkunt | ✅ Approved & Merged |
-| [#63](https://github.com/chayongchaya/toktickit/pull/63) | feat: IT Staff Ticket Operations & Internal Notes | `feature/lab3-staff-ticket-detail` → `lab3-staging` | `fa54066` | [#62](https://github.com/chayongchaya/toktickit/issues/62) | @chayanitkunt | ✅ Approved & Merged |
-| [#65](https://github.com/chayongchaya/toktickit/pull/65) | feat: Administrator User Management | `feature/lab3-admin-users` → `lab3-staging` | `b70781b` | [#64](https://github.com/chayongchaya/toktickit/issues/64) | @chayanitkunt | ✅ Approved & Merged |
-| [#66](https://github.com/chayongchaya/toktickit/pull/66) | test: E2E Testing & Visual Inspection | `feature/lab3-e2e-visual` → `lab3-staging` | `cae56dc` | [#67](https://github.com/chayongchaya/toktickit/issues/67) | @chayanitkunt | ✅ Approved & Merged |
-| [#68](https://github.com/chayongchaya/toktickit/pull/68) | test: complete Lab 3 coverage and regression test suite | `chore/lab3-test-coverage` → `lab3-staging` | `fc62b29` | [#69](https://github.com/chayongchaya/toktickit/issues/69) | @chayanitkunt | ✅ Approved & Merged |
-| [#70](https://github.com/chayongchaya/toktickit/pull/70) | refactor: Restrict requester routes & polish user management UI | `chore/lab3-ui-polish` → `lab3-staging` | `a130a3d` | [#71](https://github.com/chayongchaya/toktickit/issues/71) | @chayanitkunt | ✅ Approved & Merged |
-| [#72](https://github.com/chayongchaya/toktickit/pull/72) | chore: Fix test isolation for concurrent auth and admin forbidden tests | `chore/lab3-test-isolation` → `lab3-staging` | `4f81d44` | [#73](https://github.com/chayongchaya/toktickit/issues/73) | @chayanitkunt | ✅ Approved & Merged |
-| [#74](https://github.com/chayongchaya/toktickit/pull/74) | test: stabilize Lab 3 E2E session and visual evidence | `chore/lab3-e2e-stability` → `lab3-staging` | `caf7ecb` | [#75](https://github.com/chayongchaya/toktickit/issues/75) | @chayanitkunt | ✅ Approved & Merged |
-
-### Merge timeline (GitHub, UTC)
-
-| PR | Merged at (UTC) |
-| --- | --- |
-| [#48](https://github.com/chayongchaya/toktickit/pull/48) | 2026-09-10 13:16:23 |
-| [#50](https://github.com/chayongchaya/toktickit/pull/50) | 2026-09-13 08:01:25 |
-| [#51](https://github.com/chayongchaya/toktickit/pull/51) | 2026-09-13 10:05:18 |
-| [#54](https://github.com/chayongchaya/toktickit/pull/54) | 2026-09-14 08:00:09 |
-| [#56](https://github.com/chayongchaya/toktickit/pull/56) | 2026-09-14 08:28:31 |
-| [#58](https://github.com/chayongchaya/toktickit/pull/58) | 2026-09-14 09:17:53 |
-| [#61](https://github.com/chayongchaya/toktickit/pull/61) | 2026-09-15 06:42:31 |
-| [#63](https://github.com/chayongchaya/toktickit/pull/63) | 2026-09-15 12:52:28 |
-| [#65](https://github.com/chayongchaya/toktickit/pull/65) | 2026-09-15 16:16:29 |
-| [#66](https://github.com/chayongchaya/toktickit/pull/66) | 2026-09-15 17:26:39 |
-| [#68](https://github.com/chayongchaya/toktickit/pull/68) | 2026-09-16 06:40:45 |
-| [#70](https://github.com/chayongchaya/toktickit/pull/70) | 2026-09-16 07:51:30 |
-| [#72](https://github.com/chayongchaya/toktickit/pull/72) | 2026-09-16 08:23:17 |
-| [#74](https://github.com/chayongchaya/toktickit/pull/74) | 2026-09-16 10:50:07 |
+| PR # | Title | Branch → Target | Merge Commit | Linked Issue | Reviewer | Approval Status | Merged at (UTC) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| [#48](https://github.com/chayongchaya/toktickit/pull/48) | docs(lab3): add engineering specification and test plan | `docs/lab3-engineering-contract` → `lab3-staging` | `6855b0e` | [#47](https://github.com/chayongchaya/toktickit/issues/47) | @chayanitkunt | ✅ Approved & Merged | 2026-09-10 13:16:23 |
+| [#50](https://github.com/chayongchaya/toktickit/pull/50) | feat(db): complete lab 3 schema migration, manual sql, seeding | `feature/lab3-db-migration` → `lab3-staging` | `11839c0` | [#49](https://github.com/chayongchaya/toktickit/issues/49) | @chayanitkunt | ✅ Approved & Merged | 2026-09-13 08:01:25 |
+| [#51](https://github.com/chayongchaya/toktickit/pull/51) | feat(auth): implement authentication foundation for Lab 3 | `feature/lab3-auth-foundation` → `lab3-staging` | `6afda4f` | [#52](https://github.com/chayongchaya/toktickit/issues/52) | @chayanitkunt | ✅ Approved & Merged | 2026-09-13 10:05:18 |
+| [#54](https://github.com/chayongchaya/toktickit/pull/54) | feat: requester regression fixes and public comments support | `feature/lab3-requester-regression` → `lab3-staging` | `f5d77aa` | [#53](https://github.com/chayongchaya/toktickit/issues/53) | @chayanitkunt | ✅ Approved & Merged | 2026-09-14 08:00:09 |
+| [#56](https://github.com/chayongchaya/toktickit/pull/56) | chore: isolate test database from dev database | `chore/lab3-test-db-isolation` → `lab3-staging` | Supporting merge | [#55](https://github.com/chayongchaya/toktickit/issues/55) | @chayanitkunt | ✅ Approved & Merged | 2026-09-14 08:28:31 |
+| [#58](https://github.com/chayongchaya/toktickit/pull/58) | fix: adapt lab-01/lab-02 tests to authenticated session (MIG-02/MIG-03) | `fix/lab3-requester-regression-test-migration` → `lab3-staging` | `0513a9d` | [#57](https://github.com/chayongchaya/toktickit/issues/57) | @chayanitkunt | ✅ Approved & Merged | 2026-09-14 09:17:53 |
+| [#61](https://github.com/chayongchaya/toktickit/pull/61) | feat: IT Staff Ticket Queue | `feature/lab3-staff-queue` → `lab3-staging` | `512a5fc` | [#59](https://github.com/chayongchaya/toktickit/issues/59) | @chayanitkunt | ✅ Approved & Merged | 2026-09-15 06:42:31 |
+| [#63](https://github.com/chayongchaya/toktickit/pull/63) | feat: IT Staff Ticket Operations & Internal Notes | `feature/lab3-staff-ticket-detail` → `lab3-staging` | `fa54066` | [#62](https://github.com/chayongchaya/toktickit/issues/62) | @chayanitkunt | ✅ Approved & Merged | 2026-09-15 12:52:28 |
+| [#65](https://github.com/chayongchaya/toktickit/pull/65) | feat: Administrator User Management | `feature/lab3-admin-users` → `lab3-staging` | `b70781b` | [#64](https://github.com/chayongchaya/toktickit/issues/64) | @chayanitkunt | ✅ Approved & Merged | 2026-09-15 16:16:29 |
+| [#66](https://github.com/chayongchaya/toktickit/pull/66) | test: E2E Testing & Visual Inspection | `feature/lab3-e2e-visual` → `lab3-staging` | `cae56dc` | [#67](https://github.com/chayongchaya/toktickit/issues/67) | @chayanitkunt | ✅ Approved & Merged | 2026-09-15 17:26:39 |
+| [#68](https://github.com/chayongchaya/toktickit/pull/68) | test: complete Lab 3 coverage and regression test suite | `chore/lab3-test-coverage` → `lab3-staging` | `fc62b29` | [#69](https://github.com/chayongchaya/toktickit/issues/69) | @chayanitkunt | ✅ Approved & Merged | 2026-09-16 06:40:45 |
+| [#70](https://github.com/chayongchaya/toktickit/pull/70) | refactor: Restrict requester routes & polish user management UI | `chore/lab3-ui-polish` → `lab3-staging` | `a130a3d` | [#71](https://github.com/chayongchaya/toktickit/issues/71) | @chayanitkunt | ✅ Approved & Merged | 2026-09-16 07:51:30 |
+| [#72](https://github.com/chayongchaya/toktickit/pull/72) | chore: Fix test isolation for concurrent auth and admin forbidden tests | `chore/lab3-test-isolation` → `lab3-staging` | `4f81d44` | [#73](https://github.com/chayongchaya/toktickit/issues/73) | @chayanitkunt | ✅ Approved & Merged | 2026-09-16 08:23:17 |
+| [#74](https://github.com/chayongchaya/toktickit/pull/74) | test: stabilize Lab 3 E2E session and visual evidence | `chore/lab3-e2e-stability` → `lab3-staging` | `caf7ecb` | [#75](https://github.com/chayongchaya/toktickit/issues/75) | @chayanitkunt | ✅ Approved & Merged | 2026-09-16 10:50:07 |
 
 ### GitHub review status snapshot
 
