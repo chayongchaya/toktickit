@@ -99,7 +99,8 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 }
 
 function StaffOnlyLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-5 text-center text-muted">Checking session...</div>;
   if (!user || (user.role !== "IT_STAFF" && user.role !== "ADMINISTRATOR")) {
     return <Navigate to={user ? "/tickets" : "/login"} replace />;
   }
@@ -107,7 +108,8 @@ function StaffOnlyLayout({ children }: { children: React.ReactNode }) {
 }
 
 function RequesterOnlyLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-5 text-center text-muted">Checking session...</div>;
   if (!user || user.role !== "REQUESTER") {
     return <Navigate to={user ? "/queue" : "/login"} replace />;
   }
@@ -115,7 +117,8 @@ function RequesterOnlyLayout({ children }: { children: React.ReactNode }) {
 }
 
 function AdminOnlyLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-5 text-center text-muted">Checking session...</div>;
   if (!user || user.role !== "ADMINISTRATOR") return <Navigate to={user ? "/tickets" : "/login"} replace />;
   return <ProtectedLayout>{children}</ProtectedLayout>;
 }

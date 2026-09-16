@@ -7,7 +7,7 @@ import { ChangePasswordPage } from "../../src/pages/ChangePasswordPage.js";
 const { changePassword, markPasswordChanged, logout } = vi.hoisted(() => ({ changePassword: vi.fn(), markPasswordChanged: vi.fn(), logout: vi.fn() }));
 vi.mock("../../src/api.js", async () => {
   const actual = await vi.importActual<typeof import("../../src/api.js")>("../../src/api.js");
-  return { ...actual, changePassword };
+  return { ...actual, ApiError: actual.ApiError, changePassword };
 });
 vi.mock("../../src/context/AuthContext.js", () => ({ useAuth: () => ({ user: { name: "First Login Tester" }, markPasswordChanged, logout }) }));
 
