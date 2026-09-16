@@ -66,7 +66,9 @@ The later merged PRs (#54, #58, #61, #63, #65, #66, #68, #70, and #72) contain t
 
 ### Release documentation PR
 
-The release documentation is proposed in [PR #76](https://github.com/chayongchaya/toktickit/pull/76), from `feature/lab3-release-docs` into `lab3-staging`, at commit [`9c8c28d`](https://github.com/chayongchaya/toktickit/commit/9c8c28da38f21716731c223d30e274d5de807f5f). The PR is open and awaiting review/merge.
+| PR # | Title | Branch -> Target | Commits | Status |
+| --- | --- | --- | --- | --- |
+| [#76](https://github.com/chayongchaya/toktickit/pull/76) | docs: finalize Lab 3 release evidence | `feature/lab3-release-docs` -> `lab3-staging` | [`9c8c28d`](https://github.com/chayongchaya/toktickit/commit/9c8c28da38f21716731c223d30e274d5de807f5f), [`27bde78`](https://github.com/chayongchaya/toktickit/commit/27bde78) | Open; awaiting review/merge |
 
 ### Release into `main`
 
