@@ -57,23 +57,109 @@ The later merged PRs (#54, #58, #61, #63, #65, #66, #68, #70, and #72) contain t
 | --- | --- | --- | --- | --- | --- |
 | Pending | Complete Lab 3 | `lab3-staging` → `main` | Pending | @chayanitkunt | Pending |
 
-## 3. Comments Received (as Author) and Responses
+## 3. Comments Received (verbatim from GitHub)
 
-| PR # | Reviewer comment summary | Author response | Resolved? |
-| --- | --- | --- | --- |
-| [#48](https://github.com/chayongchaya/toktickit/pull/48) | Approved the engineering contract, status-code hierarchy, existence-hiding policy, and traceability plan. | Thanked the reviewer for the review. | ✅ |
-| [#50](https://github.com/chayongchaya/toktickit/pull/50) | Approved migration safety, role/status schema, ownership fields, bcrypt seed hashing, and complete seed coverage. | Thanked the reviewer for the database review and feedback. | ✅ |
-| [#51](https://github.com/chayongchaya/toktickit/pull/51) | Approved session handling, role guards, mandatory password changes, 401 handling, and removal of legacy requester context. | Thanked the reviewer for the auth-flow review. | ✅ |
-| [#54](https://github.com/chayongchaya/toktickit/pull/54) | Approved 404 existence hiding, Public Comments, resolved flag, and legacy route cleanup. | Fixed the reported database/test issues and requested merge after verification. | ✅ |
-| [#58](https://github.com/chayongchaya/toktickit/pull/58) | Approved authenticated Lab 2 regression tests, 404 ownership behavior, and removal of selector tests. | Thanked the reviewer and merged the migration fixes. | ✅ |
-| [#61](https://github.com/chayongchaya/toktickit/pull/61) | Approved staff queue guards, filtering/sorting, navigation, and API/UI/responsive coverage. | Thanked the reviewer for the thorough review. | ✅ |
-| [#63](https://github.com/chayongchaya/toktickit/pull/63) | Approved staff operations, PATCH endpoints, internal-note isolation, authorization, and API/UI coverage. | Thanked the reviewer for the detailed approval. | ✅ |
-| [#65](https://github.com/chayongchaya/toktickit/pull/65) | Approved admin authorization, user management UI, and API/component/E2E coverage. | Thanked the reviewer and merged the feature. | ✅ |
-| [#66](https://github.com/chayongchaya/toktickit/pull/66) | Approved staff E2E flow, responsive screenshots, and visual compliance with `ui-spec.md`. | Thanked the reviewer for checking visual artifacts. | ✅ |
-| [#68](https://github.com/chayongchaya/toktickit/pull/68) | Approved the remaining client, E2E auth, and migration/regression coverage. | Thanked the reviewer. | ✅ |
-| [#70](https://github.com/chayongchaya/toktickit/pull/70) | Approved requester route protection and UI density/badge consistency. | Thanked the reviewer for the final UI polish approval. | ✅ |
-| [#72](https://github.com/chayongchaya/toktickit/pull/72) | Approved isolation from shared Jennifer session state and temporary admin authorization fixtures. | Thanked the reviewer for catching the concurrency details. | ✅ |
-| [#74](https://github.com/chayongchaya/toktickit/pull/74) | Approved the route-guard race fix, isolated Staff E2E requester fixture, and visual screenshot timing fix. | Thanked the reviewer and merged the stability fix into `lab3-staging`. | ✅ |
+The following review comments are reproduced from GitHub. Each link points to the original review submitted by @chayanitkunt.
+
+### [PR #48 review](https://github.com/chayongchaya/toktickit/pull/48#pullrequestreview-5167410311)
+
+> Extremely thorough engineering contract and test plan! Approved.
+>
+> - **API Contract:** Clean status code hierarchy (401 → 403 → 404 → 409 → 400) and existence-hiding 404 policy for resource isolation.
+> - **Spec Fixes:** Great catch fixing the hardcoded `itPriority: "MEDIUM"` bug to match BR-14.
+> - **Test Strategy:** Comprehensive traceability matrix spanning unit, API security (`authorization.api.test.ts`), UI, and E2E specs.
+
+### [PR #50 review](https://github.com/chayongchaya/toktickit/pull/50#pullrequestreview-5190137998)
+
+> Awesome database work! Approved.
+>
+> - **Migration Safety:** The manual SQL script ensures smooth migration without dropping existing data.
+> - **Schema Alignment:** `Role` enum, expanded `TicketStatus` (8 states), `ownerId`, and separated `PublicComment`/`InternalNote` match the engineering contract perfectly.
+> - **Seeding & Security:** `seed.ts` properly hashes passwords with bcrypt and covers all roles, ticket states, and sample comments.
+
+### [PR #51 review](https://github.com/chayongchaya/toktickit/pull/51#pullrequestreview-5190377351)
+
+> Outstanding work on the auth foundation! Approved.
+>
+> - **Middleware & Guards:** Clean session handling, role-based guards, and proper enforcement for `mustChangePassword`.
+> - **Frontend Integration:** `AuthContext`, `LoginPage`, and `ChangePasswordPage` flow seamlessly, and the 401 interceptor handles session expiration nicely.
+> - **Legacy Cleanup:** Smooth removal of the old requester selector context without breaking app routing.
+
+### [PR #54 review](https://github.com/chayongchaya/toktickit/pull/54#pullrequestreview-5195117803)
+
+> Great job on the regression cleanup and Public Comments support!
+>
+> - **404 Existence Hiding:** Updating unauthorized ticket access from 403 to 404 effectively prevents ID enumeration and data leakage.
+> - **Public Comments & Status Flag:** Public Comments and the "Mark resolved" action on `TicketDetailPage` match the contract perfectly.
+> - **Dead Code Cleanup:** Successfully removed legacy `/api/requesters` routes while keeping Lab 2 regression tests green alongside new authorization specs.
+
+### [PR #56 review](https://github.com/chayongchaya/toktickit/pull/56#pullrequestreview-5195462010)
+
+> Great DX and test stability improvement! Approved
+> - **Database Isolation:** Vitest `setupFile` with `override: true` ensures `.env.test` is strictly used during test runs, preventing dev database pollution.
+> - **Developer Experience:** Included `.env.test.example` and `setup-test-db.ps1` script make setting up a dedicated test database straightforward for everyone.
+
+### [PR #58 review](https://github.com/chayongchaya/toktickit/pull/58#pullrequestreview-5195962938)
+
+> Awesome job adapting the regression test suites! Approved
+>
+> - **Auth Migration (MIG-02/MIG-03):** Clean transition from `RequesterContext` to mocked `useAuth()` across Lab 1 & 2 tests.
+> - **Spec Compliance:** Correctly updated ownership-failure tests to expect 404 existence hiding (FR-07/AC-28) and removed legacy `x-requester-id` assertions.
+> - **Cleanup:** Deleting `RequesterSelect.test.tsx` keeps test files aligned with the retired selector page (BR-32).
+
+### [PR #61 review](https://github.com/chayongchaya/toktickit/pull/61#pullrequestreview-5206389843)
+
+> Great work on the IT Staff Queue implementation!
+>
+> - **Backend Route & Guards:** `GET /api/staff/tickets` properly enforces staff role authorization middleware with query filtering and sorting.
+> - **Frontend & Navigation:** `StaffTicketQueuePage` renders clear status/priority indicators and filter controls with clean route guarding on `/queue`.
+> - **Test Coverage:** All backend API tests, component tests, responsive checks, and ordering assertions are passing cleanly.
+
+### [PR #63 review](https://github.com/chayongchaya/toktickit/pull/63#pullrequestreview-5210156773)
+
+> The IT staff ticket management and internal operations are implemented cleanly. The granular PATCH endpoints (owner, priority, status), staff-only internal notes isolation, and authorization guards look robust. Great job on the test coverage across both API and UI suites
+
+### [PR #65 review](https://github.com/chayongchaya/toktickit/pull/65#pullrequestreview-5212687332)
+
+> Awesome job on the Administrator User Management module! Approved
+>
+> - **Admin Authorization & Security:** Robust admin-only middleware properly protects all `/api/admin` endpoints with 401/403 guards.
+> - **Frontend & Navigation:** `UserManagementPage.tsx` handles account and role administration cleanly, with the nav link conditionally visible only for admins.
+> - **Full Test Coverage:** Impressive test verification—API, frontend component, and Playwright E2E tests (`user-administration.spec.ts`) all green!
+
+### [PR #66 review](https://github.com/chayongchaya/toktickit/pull/66#pullrequestreview-5213507817)
+
+> Great work completing the E2E staff ticket flow tests and visual QA artifacts!
+>
+> - **E2E Staff Coverage:** `staff-ticket-flow.spec.ts` thoroughly validates staff queue inspection, status/priority updates, and internal notes creation.
+> - **Visual QA & Artifacts:** Desktop, tablet, and mobile screenshot captures in `artifacts/lab-03/screenshots/` confirm zero layout clipping or horizontal overflow.
+> - **Design Compliance:** Fully satisfies `docs/lab-03/ui-spec.md` (§7) with consistent badge styles and component layouts.
+
+### [PR #68 review](https://github.com/chayongchaya/toktickit/pull/68#pullrequestreview-5219298346)
+
+> Excellent work closing the remaining test coverage and regression gaps. The client unit assertions, E2E auth flows, and backward compatibility checks are comprehensive, and clearing 100% of the planned items in the traceability matrix puts Lab 3 in great shape. Ready to merge.
+
+### [PR #70 review](https://github.com/chayongchaya/toktickit/pull/70#pullrequestreview-5219879470)
+
+> Great polish to wrap up Lab 3! Approved
+>
+> - **Route Protection:** `RequesterOnlyLayout` cleanly redirects Staff/Admin roles to `/queue` when hitting requester routes (`/tickets`, `/tickets/new`, etc.).
+> - **UI Density & Badges:** `0.85rem` font scaling on `UserManagementPage` improves readability on mobile/desktop without text clipping, and Role Badges now match the rest of the application.
+
+### [PR #72 review](https://github.com/chayongchaya/toktickit/pull/72#pullrequestreview-5220271877)
+
+> Great fix for test suite reliability!
+>
+> - **Session Collision Prevention:** Decoupling ticket creation tests from the shared "Jennifer" seed fixture eliminates intermittent 401 race conditions during concurrent test runs.
+> - **Ephemeral Test Fixtures:** Dynamic creation and teardown of temporary user fixtures in `users-admin.api.test.ts` keeps DB state predictable for 403 Forbidden assertions.
+
+### [PR #74 review](https://github.com/chayongchaya/toktickit/pull/74#pullrequestreview-5221654311)
+
+> Approved! Excellent refactoring to eliminate race conditions across client routing and testing suites. 👏
+>
+> - **Session Hydration & Deep Links:** Resolving premature redirects in `App.tsx` by awaiting session hydration makes deep-link navigation far more reliable.
+> - **Ephemeral Test Lifecycle:** Dynamic requester creation, handling the initial password-change requirement, and automatic post-test teardown makes the Staff E2E suite completely deterministic.
+> - **Visual Artifact Synchronization:** Waiting for full UI hydration before taking snapshots keeps the visual evidence under `artifacts/lab-03/screenshots/` accurate and free of loading state artifacts.
 
 ## 4. Verification Evidence
 
