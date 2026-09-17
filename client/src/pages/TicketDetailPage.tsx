@@ -597,10 +597,10 @@ export const TicketDetailPage: React.FC = () => {
               appears resolved, but this never changes currentStatus —
               only IT Staff/Administrator can formally set Resolved/Closed. */}
           <div
-            className="d-flex align-items-center justify-content-between p-3 rounded-2"
+            className="d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 rounded-2"
             style={{ backgroundColor: "#F5F7F6", border: "1px solid #E3E8E5" }}
           >
-            <div>
+            <div className="flex-grow-1">
               <div className="small fw-semibold text-dark">
                 {ticket.problemAppearsResolved
                   ? "You marked this as resolved"
@@ -647,7 +647,7 @@ export const TicketDetailPage: React.FC = () => {
 
           <div className="card-body p-4">
             <div>
-              <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <h6 className="fw-bold mb-0 text-dark">
                   Attached Files
                 </h6>
@@ -690,16 +690,16 @@ export const TicketDetailPage: React.FC = () => {
                   {activeAttachments.map((att) => (
                     <div
                       key={att.id}
-                      className="d-flex justify-content-between align-items-center py-2 border-bottom"
+                      className="d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 border-bottom"
                     >
-                      <div className="d-flex align-items-center gap-2">
+                      <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ minWidth: 0 }}>
                         <span>📄</span>
-                        <span className="fw-medium text-dark">
+                        <span className="fw-medium text-dark text-break">
                           {displayFileName(att)}
                         </span>
                       </div>
 
-                      <div className="d-flex align-items-center gap-4">
+                      <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
                         <span className="text-muted small">
                           File type
                         </span>
@@ -743,16 +743,16 @@ export const TicketDetailPage: React.FC = () => {
                   {removedAttachments.map((att) => (
                     <div
                       key={att.id}
-                      className="d-flex justify-content-between align-items-center py-2 border-bottom text-muted small"
+                      className="d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 border-bottom text-muted small"
                     >
-                      <div className="d-flex align-items-center gap-2">
+                      <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ minWidth: 0 }}>
                         <span>📄</span>
-                        <span className="text-decoration-line-through">
+                        <span className="text-decoration-line-through text-break">
                           {displayFileName(att)}
                         </span>
                       </div>
 
-                      <div className="text-danger">
+                      <div className="text-danger text-break text-end">
                         Removal reason:{" "}
                         {att.removalReason ||
                           "Removed by requester"}
@@ -780,10 +780,11 @@ export const TicketDetailPage: React.FC = () => {
               <label htmlFor="public-comment" className="form-label small text-muted mb-1">
                 Add Public Comment
               </label>
-              <div className="d-flex gap-2">
+              <div className="d-flex gap-2 flex-wrap">
                 <textarea
                   id="public-comment"
-                  className="form-control form-control-sm"
+                  className="form-control form-control-sm flex-grow-1"
+                  style={{ minWidth: 0 }}
                   rows={2}
                   placeholder="Type your comment here..."
                   value={commentDraft}
