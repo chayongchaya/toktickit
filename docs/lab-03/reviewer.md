@@ -96,5 +96,9 @@ Lab 3 implementation, coverage, UI polish, test-isolation, and release-documenta
 
 After PR #78 had already released Lab 3 into `main`, manual verification found a bug in the Change Password flow: when the authenticated session expires, the API returns `401 Not authenticated` while the page remains visible, leaving the user unable to continue or return to Login.
 
-Because this was discovered after the release merge, the code fix was implemented as a post-release follow-up on `lab3-staging`: it redirects to `/login` when the authenticated user becomes unavailable and makes Cancel and log out navigate to `/login`. Client regression coverage and build verification were added for this flow. The original review history remains unchanged; this follow-up is intended to be reviewed and merged into `main` separately.
+Because this was discovered after the release merge, the code fix was implemented as a post-release follow-up on `lab3-staging`: it redirects to `/login` when the authenticated user becomes unavailable and makes Cancel and log out navigate to `/login`. Client regression coverage and build verification were added for this flow. The original review history remains unchanged; this follow-up is tracked in [PR #84](https://github.com/chayongchaya/toktickit/pull/84), from `lab3-staging` to `main`.
+
+| PR # | Title | Branch -> Target | Commits | Status |
+| --- | --- | --- | --- | --- |
+| [#84](https://github.com/chayongchaya/toktickit/pull/84) | fix: handle expired change-password sessions | `lab3-staging` -> `main` | `c011344`, `808dc65` | Open — awaiting review |
 
