@@ -5,6 +5,7 @@ import path from "path";
 const root = path.join(__dirname, "..", "..", "artifacts", "lab-03", "screenshots");
 const admin = { email: "john.smith@tiktockit.com", password: "DevPass123!" };
 const staff = { email: "kevin.patel@tiktockit.com", password: "DevPass123!" };
+const requester = { email: "jennifer.anderson@kmutt.ac.th", password: "DevPass123!" };
 
 async function signIn(page: import("@playwright/test").Page, account: { email: string; password: string }, destination: RegExp) {
   await page.goto("/login");
@@ -53,6 +54,18 @@ test.describe("Lab 3 responsive visual evidence", () => {
     await ticket.click();
     await expect(page.getByText("Staff Ticket Detail")).toBeVisible();
     await capture(page, "staff-ticket-detail", testInfo.project.name);
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("captures Requester Ticket Detail with Public Comments", async ({ page }, testInfo) => {
+    await signIn(page, requester, /.*\/tickets/);
+    const ticket = page.locator("a[href^='/tickets/']:not([href='/tickets/new']):visible").first();
+    await expect(ticket).toBeVisible();
+    await ticket.click();
+    await expect(page.getByText("Ticket Details")).toBeVisible();
+    await expect(page.getByText("Public Comments")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Mark problem appears resolved/i })).toBeVisible();
+    await capture(page, "requester-ticket-detail", testInfo.project.name);
     await expectNoHorizontalOverflow(page);
   });
 

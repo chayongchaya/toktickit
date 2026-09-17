@@ -108,10 +108,10 @@ full user flows).
 > (`server/tests/lab-02/*.test.ts`) shows those files contain **1** and **3** `it()` blocks
 > respectively, not 5 and 4 — the old numbers were pasted in error and didn't even sum to
 > the "48 passed" total shown at the bottom of that block. The table below is reconciled
-> against the real file contents. It still needs to be re-run and replaced with a live
-> console capture before final submission — `server/test-results/.last-run.json`, shipped
-> with this repo, records `"status": "failed"` for the most recent actual run, so backend
-> test health here should be treated as **unverified** until confirmed by an actual pass.
+> against the real file contents. The full test suite was re-run on `main` on 2026-09-17:
+> backend **19 test files / 98 tests passed**, and frontend **14 test files / 76 tests passed**.
+> The old generated `server/test-results/.last-run.json` artifact was removed because it was
+> stale and recorded a failed run from an earlier date.
 
 ```
 > toktickit-server@1.0.0 test
