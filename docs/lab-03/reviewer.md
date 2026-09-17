@@ -94,7 +94,7 @@ Lab 3 implementation, coverage, UI polish, test-isolation, and release-documenta
 
 ### Post-release follow-up: Change Password session-loss handling
 
-Manual verification found that when the authenticated session expires during Change Password, the API returns `401 Not authenticated` while the page remains visible, leaving the user unable to continue or return to Login.
+After PR #78 had already released Lab 3 into `main`, manual verification found a bug in the Change Password flow: when the authenticated session expires, the API returns `401 Not authenticated` while the page remains visible, leaving the user unable to continue or return to Login.
 
-The follow-up fix redirects to `/login` when the authenticated user becomes unavailable and makes Cancel and log out navigate to `/login`. Client regression coverage and build verification were added for this flow. The original review history remains unchanged.
+Because this was discovered after the release merge, the code fix was implemented as a post-release follow-up on `lab3-staging`: it redirects to `/login` when the authenticated user becomes unavailable and makes Cancel and log out navigate to `/login`. Client regression coverage and build verification were added for this flow. The original review history remains unchanged; this follow-up is intended to be reviewed and merged into `main` separately.
 
