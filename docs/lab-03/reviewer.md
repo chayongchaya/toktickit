@@ -92,3 +92,9 @@ The table below records the review text and the author's actual response comment
 
 Lab 3 implementation, coverage, UI polish, test-isolation, and release-documentation PRs were reviewed and approved by @chayanitkunt. They were merged into `lab3-staging`, followed by release PR #78 merging `lab3-staging` into `main`.
 
+### Post-release follow-up: Change Password session-loss handling
+
+Manual verification found that when the authenticated session expires during Change Password, the API returns `401 Not authenticated` while the page remains visible, leaving the user unable to continue or return to Login.
+
+The follow-up fix redirects to `/login` when the authenticated user becomes unavailable and makes Cancel and log out navigate to `/login`. Client regression coverage and build verification were added for this flow. The original review history remains unchanged.
+
