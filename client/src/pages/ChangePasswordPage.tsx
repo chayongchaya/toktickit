@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.js";
 import { changePassword, ApiError } from "../api.js";
 
@@ -28,6 +28,10 @@ export const ChangePasswordPage: React.FC = () => {
   const policy = useMemo(() => evaluatePolicy(newPassword), [newPassword]);
   const policyPassed = policy.length && policy.upperLower && policy.number && policy.special;
   const confirmMatches = confirmPassword.length > 0 && confirmPassword === newPassword;
+
+  // A 401 can clear the session while this route is still mounted. Do not
+  // leave the user stranded on a password form that can no longer submit.
+  if (!user) return <Navigate to="/login" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,7 +159,10 @@ export const ChangePasswordPage: React.FC = () => {
           <button
             type="button"
             className="btn btn-link btn-sm w-100 text-muted text-decoration-none"
-            onClick={() => logout()}
+            onClick={async () => {
+              await logout();
+              navigate("/login", { replace: true });
+            }}
             disabled={submitting}
           >
             Cancel and log out
