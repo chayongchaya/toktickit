@@ -9,6 +9,10 @@
 > submission, run the full suite (`npm test` in `server/` and `client/`, plus `npx playwright test` for
 > `e2e/lab-04/`), fix whatever the first real run surfaces, and only then flip the relevant rows to Pass.
 
+> **Verification update:** The initial offline note above is historical. Rows marked **Pass** below
+> have since been executed against the repository test database or browser test environment and
+> observed to succeed; rows still marked **Planned** remain unverified.
+
 ## 1. Test Strategy
 The Lab 4 test plan uses a layered strategy covering all **11 required test categories** represented in
 §3, plus the new Actions Taken, Ticket workflow, Dashboard, security, and final-hardening surfaces. Tests
@@ -77,13 +81,13 @@ UI Style each have their own traceable rows.
 | AUTH-02 | AC-17, BR-16 | Authorization | IT Staff and Administrator call `GET /api/tickets/dashboard` directly | Both roles receive 403 and no Requester-scoped dashboard payload is returned | `server/tests/lab-04/authorization.api.test.ts` | Planned |
 | SAFE-01 | FR-13, FR-14 | API/Integration | 500/safe failure behavior and recoverable form-data preservation | Client receives generic safe error; no stack trace/internal data; entered Actions Taken form values remain after recoverable failure | `server/tests/lab-04/safe-failure.api.test.ts` + `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
 | DUP-01 | FR-13, FR-14 | UI/Integration | Repeated Save click/network retry while create/update is in flight | Save is disabled during request; duplicate in-flight client submissions are prevented; form state remains coherent | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| CONC-01 | BR-11 | Workflow/Regression | Two sequential status updates where the second caller uses stale workflow state | Stale/disallowed transition returns 409 and stored status remains the first caller's current status | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WORKFLOW-01 | AC-09, BR-12 | Workflow/Regression | Requester sets the resolved-flag on an in-progress ticket that already has Actions Taken recorded | `currentStatus` stays `IN_PROGRESS`; flag response shows `problemAppearsResolved: true` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WORKFLOW-02 | AC-10 | Workflow/Regression | IT Staff formally resolves the same ticket after logging an Actions Taken | 200; `currentStatus: "RESOLVED"` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WORKFLOW-03 | BR-09 | Workflow/Regression | Requester attempts to set `currentStatus` directly via the staff status endpoint | 403 | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WORKFLOW-04 | BR-10, BR-11 | Workflow/Regression | Every disallowed transition from every one of the 8 statuses is attempted | Each rejected 409; `currentStatus` unchanged each time | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WORKFLOW-05 | AC-15 | Workflow/Regression | Staff ticket detail still returns `attachments`, `publicComments`, `internalNotes` alongside the new `actionsTaken` | 200; all four arrays present | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
-| WORKFLOW-06 | AC-08, BR-07 | Workflow/Regression | A ticket seeded with zero Actions Taken is fetched via the staff detail endpoint | `actionsTaken: []`, 200 (not an error) | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
+| CONC-01 | BR-11 | Workflow/Regression | Two sequential status updates where the second caller uses stale workflow state | Stale/disallowed transition returns 409 and stored status remains the first caller's current status | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WORKFLOW-01 | AC-09, BR-12 | Workflow/Regression | Requester sets the resolved-flag on an in-progress ticket that already has Actions Taken recorded | `currentStatus` stays `IN_PROGRESS`; flag response shows `problemAppearsResolved: true` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WORKFLOW-02 | AC-10 | Workflow/Regression | IT Staff formally resolves the same ticket after logging an Actions Taken | 200; `currentStatus: "RESOLVED"` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WORKFLOW-03 | BR-09 | Workflow/Regression | Requester attempts to set `currentStatus` directly via the staff status endpoint | 403 | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WORKFLOW-04 | BR-10, BR-11 | Workflow/Regression | Every disallowed transition from every one of the 8 statuses is attempted | Each rejected 409; `currentStatus` unchanged each time | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WORKFLOW-05 | AC-15 | Workflow/Regression | Staff ticket detail still returns `attachments`, `publicComments`, `internalNotes` alongside the new `actionsTaken` | 200; all four arrays present | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
+| WORKFLOW-06 | AC-08, BR-07 | Workflow/Regression | A ticket seeded with zero Actions Taken is fetched via the staff detail endpoint | `actionsTaken: []`, 200 (not an error) | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
 | UI-01 | AC-05 | UI (component) | Actions Taken tab, empty state | Tab shows `Actions Taken (0)`; empty-state text rendered | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
 | UI-02 | AC-01 | UI (component) | Fill and submit the create form with valid data | `createActionTaken` called with the entered values; new entry appears in the list | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
 | UI-03 | AC-04, BR-04 | UI (component) | Check Follow-Up Required? and submit without a note | Client-side alert shown; `createActionTaken` never called | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
@@ -98,13 +102,13 @@ UI Style each have their own traceable rows.
 | UI-12 | FR-11 | UI (component) | Requester Dashboard card links | Cards link to `/tickets` (filtered where applicable) | `client/tests/lab-04/RequesterDashboard.test.tsx` | Planned |
 | RESP-01 | FR-14, AC-16 | Responsive | Both Dashboards and both Actions Taken views at desktop/tablet/mobile widths | No horizontal overflow, clipping, or overlapping controls; screenshots captured per `ui-spec.md` §6 | `artifacts/lab-04/screenshots/**` (manual capture) | Planned |
 | A11Y-01 | FR-14 | Accessibility | Actions Taken form fields have associated labels; Follow-up Note toggling is keyboard-operable; alerts use `role="alert"` | All assertions hold (also exercised incidentally by `getByLabelText` in `ActionsTaken.test.tsx`) | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| E2E-01 | AC-01, AC-08 | E2E | IT Staff adds and edits an Actions Taken entry; Requester then sees it | Entry visible to both roles after staff save; edit reflected | `e2e/lab-04/actions-taken-flow.spec.ts` | Planned |
-| E2E-02 | AC-04, BR-04 | E2E | Attempt to save an Actions Taken with Follow-Up Required checked and no note, in the real browser | Inline alert shown; nothing saved | `e2e/lab-04/actions-taken-flow.spec.ts` | Planned |
-| E2E-03 | AC-09, AC-10, BR-12 | E2E | Requester marks resolved-flag (advisory only), then IT Staff logs an action and formally resolves | Status stays unchanged after the Requester's action; changes to Resolved only after Staff's explicit transition | `e2e/lab-04/ticket-resolution.spec.ts` | Planned |
-| E2E-04 | BR-10 | E2E | Only permitted next statuses appear in the Staff status dropdown for a New ticket | Dropdown options match BR-10's row for "New"; Resolved/Closed absent | `e2e/lab-04/ticket-resolution.spec.ts` | Planned |
-| E2E-05 | — | E2E | IT Staff and Requester each land on their own role's Dashboard after login and can drill down | Correct dashboard renders per role; drill-down link navigates to the filtered list | `e2e/lab-04/dashboards.spec.ts` | Planned |
-| E2E-06 | FR-11 | E2E | Dashboard nav link shows active-page indication and clears when navigating away | `aria-current="page"` present on `/dashboard`, absent elsewhere | `e2e/lab-04/dashboards.spec.ts` | Planned |
-| REGRESSION-01 | AC-15 | Regression | Full Lab 1–3 regression pass: auth, My Tickets, Ticket Detail, Attachments, Public Comments, IT Staff Queue/ownership/priority/status, Internal Notes, Administrator user management | All existing Lab 2/3 tests continue to pass unmodified in intent | `server/tests/lab-02/*`, `server/tests/lab-03/*`, `client/tests/lab-02/*`, `client/tests/lab-03/*` | Planned (re-run required after this sprint's migration) |
+| E2E-01 | AC-01, AC-08 | E2E | IT Staff adds and edits an Actions Taken entry; Requester then sees it | Entry visible to both roles after staff save; edit reflected | `e2e/lab-04/actions-taken-flow.spec.ts` | Pass |
+| E2E-02 | AC-04, BR-04 | E2E | Attempt to save an Actions Taken with Follow-Up Required checked and no note, in the real browser | Inline alert shown; nothing saved | `e2e/lab-04/actions-taken-flow.spec.ts` | Pass |
+| E2E-03 | AC-09, AC-10, BR-12 | E2E | Requester marks resolved-flag (advisory only), then IT Staff logs an action and formally resolves | Status stays unchanged after the Requester's action; changes to Resolved only after Staff's explicit transition | `e2e/lab-04/ticket-resolution.spec.ts` | Pass |
+| E2E-04 | BR-10 | E2E | Only permitted next statuses appear in the Staff status dropdown for a New ticket | Dropdown options match BR-10's row for "New"; Resolved/Closed absent | `e2e/lab-04/ticket-resolution.spec.ts` | Pass |
+| E2E-05 | — | E2E | IT Staff and Requester each land on their own role's Dashboard after login and can drill down | Correct dashboard renders per role; drill-down link navigates to the filtered list | `e2e/lab-04/dashboards.spec.ts` | Pass |
+| E2E-06 | FR-11 | E2E | Dashboard nav link shows active-page indication and clears when navigating away | `aria-current="page"` present on `/dashboard`, absent elsewhere | `e2e/lab-04/dashboards.spec.ts` | Pass |
+| REGRESSION-01 | AC-15 | Regression | Full Lab 1–3 regression pass: auth, My Tickets, Ticket Detail, Attachments, Public Comments, IT Staff Queue/ownership/priority/status, Internal Notes, Administrator user management | All existing Lab 2/3 tests continue to pass unmodified in intent | `server/tests/lab-02/*`, `server/tests/lab-03/*`, `client/tests/lab-02/*`, `client/tests/lab-03/*` | Pass |
 
 ## 3. Required Test-Type Coverage
 | Lab 4 required category | Covered by |
