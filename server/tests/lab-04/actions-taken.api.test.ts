@@ -1,36 +1,60 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
 import { loginAs } from "../helpers/auth.js";
 
 const prisma = getPrisma();
+const fixtureTicketIds = new Set<number>();
 
-async function fixtures() {
-  const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
-  const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false } });
-  const requesterTicket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
-  const otherTicket = await prisma.ticket.findFirstOrThrow({ where: { id: { not: requesterTicket.id } } });
-  return { staff, requester, requesterTicket, otherTicket };
-}
-
-async function createEmptyRequesterTicket(requesterId: number) {
+async function createFixtureTicket(requesterId: number, label: string) {
   const category = await prisma.category.findFirstOrThrow({ where: { isActive: true } });
   const relatedSystem = await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } });
-  return prisma.ticket.create({
+  const ticket = await prisma.ticket.create({
     data: {
-      ticketNumber: `TKT-API-ACTIONS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      ticketNumber: `TKT-API-ACTIONS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${label}`,
       requesterId,
       categoryId: category.id,
       relatedSystemId: relatedSystem.id,
       summary: "Actions Taken API test ticket",
-      description: "Temporary ticket used to verify an empty Actions Taken list.",
+      description: "Temporary ticket used to isolate the Actions Taken API test.",
       requestedPriority: "MEDIUM",
       itPriority: "MEDIUM",
       currentStatus: "NEW",
     },
   });
+  fixtureTicketIds.add(ticket.id);
+  return ticket;
 }
+
+async function fixtures() {
+  const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
+  const requester = await prisma.user.findFirstOrThrow({
+    where: {
+      role: "REQUESTER",
+      isActive: true,
+      mustChangePassword: false,
+      NOT: { email: { startsWith: "first-login-" } },
+    },
+    orderBy: { id: "asc" },
+  });
+  const requesterTicket = await createFixtureTicket(requester.id, "requester");
+  const otherTicket = await createFixtureTicket(requester.id, "other");
+  return { staff, requester, requesterTicket, otherTicket };
+}
+
+async function createEmptyRequesterTicket(requesterId: number) {
+  return createFixtureTicket(requesterId, "empty");
+}
+
+afterEach(async () => {
+  const ids = [...fixtureTicketIds];
+  if (ids.length > 0) {
+    await prisma.actionTaken.deleteMany({ where: { ticketId: { in: ids } } });
+    await prisma.ticket.deleteMany({ where: { id: { in: ids } } });
+  }
+  fixtureTicketIds.clear();
+});
 
 async function createAction(ticketId: number, staffEmail: string, overrides: Record<string, unknown> = {}) {
   return request(app)
