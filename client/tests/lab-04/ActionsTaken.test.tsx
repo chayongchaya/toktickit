@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { StaffTicketDetailPage } from "../../src/pages/staff/StaffTicketDetailPage.js";
@@ -108,7 +108,7 @@ describe("Actions Taken staff UI", () => {
     fireEvent.change(screen.getByLabelText("Result"), { target: { value: "Busy result" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Action Taken" }));
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-    resolve(action);
+    await act(async () => { resolve(action); });
   });
 
   it("A11Y-01: form controls have labels and the validation is an alert", async () => {
