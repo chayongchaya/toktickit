@@ -9,7 +9,7 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 | Role | Name - Student ID | GitHub Username |
 |---|---|---|
 | Author (this repo) | Kulchaya Paipinij - 67070503406 | @chayongchaya |
-| Peer Reviewer | `[verify from GitHub]` | `[verify from GitHub]` |
+| Peer Reviewer | Chayanit Kuntanarumitkul - 67070503408 | @chayanitkunt |
 
 ## 2. Pull Requests Reviewed in Lab 4
 
