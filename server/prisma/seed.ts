@@ -250,7 +250,90 @@ async function main() {
   }
   console.log("✅ Tickets seeded (8 tickets covering all 8 statuses, mixed priorities/ownership)");
 
-  // 5. Public Comments and Internal Notes (at least 2 tickets each) -------
+  // 5. Actions Taken: deterministic, idempotent fixtures ------------------
+  // TKT-2026-000001 intentionally has zero actions for WORKFLOW-06. The
+  // remaining fixtures cover exactly one and multiple actions, including a
+  // pending follow-up. Matching by ticket and description makes re-seeding
+  // safe without requiring a schema-level unique constraint on free text.
+  const actionSeeds: {
+    ticketNumber: string;
+    performedByEmail: string;
+    actionDateTime: Date;
+    description: string;
+    result: string;
+    followUpRequired: boolean;
+    followUpNote?: string;
+    attachmentNotes?: string;
+  }[] = [
+    {
+      ticketNumber: "TKT-2026-000002",
+      performedByEmail: "emily.davis@tiktockit.com",
+      actionDateTime: new Date("2026-09-10T09:15:00.000Z"),
+      description: "Reviewed VPN client logs and gateway authentication events.",
+      result: "The failure is isolated to the user's VPN group certificate.",
+      followUpRequired: false,
+    },
+    {
+      ticketNumber: "TKT-2026-000003",
+      performedByEmail: "lisa.martinez@tiktockit.com",
+      actionDateTime: new Date("2026-09-11T10:30:00.000Z"),
+      description: "Compared mobile mail profile settings with the working desktop profile.",
+      result: "The mobile profile has an outdated synchronization endpoint.",
+      followUpRequired: true,
+      followUpNote: "Confirm mobile sync after the requester re-adds the account.",
+    },
+    {
+      ticketNumber: "TKT-2026-000003",
+      performedByEmail: "lisa.martinez@tiktockit.com",
+      actionDateTime: new Date("2026-09-11T14:00:00.000Z"),
+      description: "Sent the requester steps to remove and re-add the mobile account.",
+      result: "Requester has been asked to test synchronization after the change.",
+      followUpRequired: true,
+      followUpNote: "Check the ticket after the requester confirms the test result.",
+      attachmentNotes: "See mobile-mail-reset-steps.pdf in the ticket email.",
+    },
+    {
+      ticketNumber: "TKT-2026-000004",
+      performedByEmail: "kevin.patel@tiktockit.com",
+      actionDateTime: new Date("2026-09-12T08:45:00.000Z"),
+      description: "Updated the docking station firmware and reinstalled the display driver.",
+      result: "Both external monitors are detected after a restart.",
+      followUpRequired: false,
+    },
+    {
+      ticketNumber: "TKT-2026-000004",
+      performedByEmail: "kevin.patel@tiktockit.com",
+      actionDateTime: new Date("2026-09-12T11:00:00.000Z"),
+      description: "Validated the docking station with the requester's normal peripherals.",
+      result: "The workstation passed the connectivity check and is ready for use.",
+      followUpRequired: false,
+    },
+  ];
+
+  for (const action of actionSeeds) {
+    const ticketId = ticketIdByNumber.get(action.ticketNumber)!;
+    const performedById = userIdByEmail.get(action.performedByEmail)!;
+    const existing = await prisma.actionTaken.findFirst({
+      where: { ticketId, description: action.description },
+    });
+    if (!existing) {
+      await prisma.actionTaken.create({
+        data: {
+          ticketId,
+          actionDateTime: action.actionDateTime,
+          description: action.description,
+          result: action.result,
+          performedById,
+          followUpRequired: action.followUpRequired,
+          followUpNote: action.followUpRequired ? action.followUpNote : null,
+          attachmentNotes: action.attachmentNotes ?? null,
+        },
+      });
+    }
+  }
+  console.log("Actions Taken seeded (zero, one, and multiple-action tickets; pending follow-up included)");
+
+  // 6. Public Comments and Internal Notes (at least 2 tickets each) -------
   const commentSeeds: { ticketNumber: string; authorEmail: string; content: string }[] = [
     {
       ticketNumber: "TKT-2026-000001",
