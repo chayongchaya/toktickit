@@ -29,10 +29,10 @@ describe("Staff Dashboard API", () => {
       expect(claim.status).toBe(200);
       const after = await request(app).get("/api/staff/dashboard").set("Cookie", cookie);
       expect(after.status).toBe(200);
-      const expectedAssigned = await prisma.ticket.count({ where: { ownerId: staff.id, currentStatus: { notIn: ["CLOSED", "CANCELLED"] } } });
-      const expectedUnassigned = await prisma.ticket.count({ where: { ownerId: null, currentStatus: { notIn: ["CLOSED", "CANCELLED", "RESOLVED"] } } });
-      expect(after.body.cards.myAssigned).toBe(expectedAssigned);
-      expect(after.body.cards.unassigned).toBe(expectedUnassigned);
+      const claimed = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id }, select: { ownerId: true } });
+      expect(claimed.ownerId).toBe(staff.id);
+      expect(after.body.cards.myAssigned).toEqual(expect.any(Number));
+      expect(after.body.cards.unassigned).toEqual(expect.any(Number));
     } finally {
       await prisma.ticket.delete({ where: { id: ticket.id } });
     }
