@@ -12,8 +12,22 @@
 ## Evidence and remaining checks
 
 - Test status evidence is maintained in `docs/lab-04/tests.md`.
-- Responsive screenshots belong under `artifacts/lab-04/screenshots/`.
+- Responsive screenshot capture passed 12/12 and is stored under `artifacts/lab-04/screenshots/`:
+  - `staff-dashboard/{desktop,tablet,mobile}.png`
+  - `requester-dashboard/{desktop,tablet,mobile}.png`
+  - `actions-taken/{desktop,tablet,mobile}.png`
+  - `actions-taken-requester/{desktop,tablet,mobile}.png`
 - The full Lab 4 Playwright rerun is environment-sensitive: seeded accounts must be reset with `npm --prefix server run prisma:seed` after earlier E2E password-changing tests. The remaining Planned rows in `tests.md` are not claimed as complete.
+
+## GitHub review evidence
+
+The following items must be copied from the actual GitHub pages before PDF submission; no reviewer,
+approval, comment, or PR data is inferred locally:
+
+- Reviewer name: `[fill from GitHub]`
+- Hardening PR: `[fill actual GitHub PR URL]`
+- Approval/comment evidence: `[attach GitHub screenshot or link]`
+- Merge evidence into `main`: `[fill actual GitHub PR URL and merge timestamp]`
 
 ## Review focus
 

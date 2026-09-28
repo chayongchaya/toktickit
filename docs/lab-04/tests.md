@@ -9,9 +9,9 @@
 > submission, run the full suite (`npm test` in `server/` and `client/`, plus `npx playwright test` for
 > `e2e/lab-04/`), fix whatever the first real run surfaces, and only then flip the relevant rows to Pass.
 
-> **Verification update:** The initial offline note above is historical. Rows marked **Pass** below
-> have since been executed against the repository test database or browser test environment and
-> observed to succeed; rows still marked **Planned** remain unverified.
+> **Verification update:** The initial offline note above is historical. Server tests passed 23 files /
+> 122 tests; client tests passed 18 files / 90 tests; the responsive screenshot capture passed 12/12
+> tests and produced all four Lab 4 page groups. Rows still marked **Planned** remain unverified.
 
 ## 1. Test Strategy
 The Lab 4 test plan uses a layered strategy covering all **11 required test categories** represented in
