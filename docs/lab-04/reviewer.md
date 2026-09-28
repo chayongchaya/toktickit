@@ -25,6 +25,8 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 
 ### Hardening branch
 
+**Reviewer for the listed Lab 4 feature PRs:** Chayanit Kuntanarumitkul - 67070503408 (`@chayanitkunt`).
+
 | Branch | Target | Commits | Remote status |
 |---|---|---|---|
 | `chore/lab4-hardening` | `[create actual GitHub PR]` | `fa64a03`, `61f995c`, `e7e4e3b`, `c70a24e`, `b5686c2`, `3951d53`, `9993058` | Pushed to `origin/chore/lab4-hardening` |
@@ -33,7 +35,7 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 
 | PR # | Reviewer | Comment | Author response |
 |---|---|---|---|
-| `[fill]` | `[fill from GitHub]` | `[paste actual review comment]` | `[paste actual response]` |
+| `[fill PR number]` | @chayanitkunt | `[paste actual review comment from GitHub]` | `[paste actual response from GitHub]` |
 
 No reviewer comments or approvals are inferred from local files. Complete this table from GitHub.
 
@@ -63,7 +65,7 @@ No reviewer comments or approvals are inferred from local files. Complete this t
 The following items must be copied from the actual GitHub pages before PDF submission; no reviewer,
 approval, comment, or PR data is inferred locally:
 
-- Reviewer name: `[fill from GitHub]`
+- Reviewer name: Chayanit Kuntanarumitkul - 67070503408 (`@chayanitkunt`)
 - Hardening PR: `[fill actual GitHub PR URL]`
 - Approval/comment evidence: `[attach GitHub screenshot or link]`
 - Merge evidence into `main`: `[fill actual GitHub PR URL and merge timestamp]`
