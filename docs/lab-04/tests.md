@@ -9,6 +9,10 @@
 > submission, run the full suite (`npm test` in `server/` and `client/`, plus `npx playwright test` for
 > `e2e/lab-04/`), fix whatever the first real run surfaces, and only then flip the relevant rows to Pass.
 
+> **Verification update:** The initial offline note above is historical. Rows marked **Pass** below
+> have since been executed against the repository test database or browser test environment and
+> observed to succeed; rows still marked **Planned** remain unverified.
+
 ## 1. Test Strategy
 The Lab 4 test plan uses a layered strategy covering all **11 required test categories** represented in
 §3, plus the new Actions Taken, Ticket workflow, Dashboard, security, and final-hardening surfaces. Tests
