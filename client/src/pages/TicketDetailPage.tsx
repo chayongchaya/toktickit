@@ -9,6 +9,7 @@ import {
   postPublicComment,
   setProblemAppearsResolved,
   ApiError,
+  type ActionTaken,
   type Ticket,
   type PublicComment,
 } from "../api.js";
@@ -847,6 +848,15 @@ export const TicketDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="card border-0 shadow-sm rounded-3 bg-white mt-4">
+        <div className="card-header bg-white border-bottom px-4 py-3">
+          <h6 className="fw-bold mb-0 text-dark">Actions Taken <span className="text-muted fw-normal">({(ticket.actionsTaken ?? []).length})</span></h6>
+        </div>
+        <div className="card-body p-4">
+          {(ticket.actionsTaken ?? []).length === 0 ? <p className="text-muted small fst-italic mb-0">No Actions Taken yet.</p> : <div className="d-flex flex-column gap-3">{(ticket.actionsTaken ?? []).map((action: ActionTaken) => <div key={action.id} className="border rounded-3 p-3"><div className="small fw-semibold">{action.performedBy.name} <span className="badge rounded-pill bg-light text-muted border ms-1">{action.performedBy.role === "IT_STAFF" ? "IT Staff" : action.performedBy.role === "ADMINISTRATOR" ? "Administrator" : "Requester"}</span><span className="text-muted fw-normal ms-2">· {new Date(action.actionDateTime).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span></div><div className="small mt-2"><strong>Description:</strong> {action.description}</div><div className="small mt-1"><strong>Result:</strong> {action.result}</div><div className="small mt-1"><strong>Follow-Up Required?</strong> {action.followUpRequired ? "Yes" : "No"}</div>{action.followUpRequired && action.followUpNote && <div className="small mt-1"><strong>Follow-up Note:</strong> {action.followUpNote}</div>}{action.attachmentNotes && <div className="small mt-1"><strong>Attachment Notes:</strong> {action.attachmentNotes}</div>}</div>)}</div>}
         </div>
       </div>
 
