@@ -15,13 +15,13 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 
 | PR # | Branch → Target | Merge commit | Date from local Git history | Approval status |
 |---|---|---|---|---|
-| [#86](https://github.com/chayongchaya/toktickit/pull/86) | `docs/lab4-engineering-contract` → `lab4-staging` | `16eb035` | 2026-09-27 | Verify on GitHub |
-| [#88](https://github.com/chayongchaya/toktickit/pull/88) | `feature/lab4-actions-taken-db` → `lab4-staging` | `0721195` | 2026-09-28 | Verify on GitHub |
-| [#90](https://github.com/chayongchaya/toktickit/pull/90) | `feature/lab4-actions-taken-api` → `lab4-staging` | `57310fa` | 2026-09-28 | Verify on GitHub |
-| [#92](https://github.com/chayongchaya/toktickit/pull/92) | `feature/lab4-actions-taken-ui` → `lab4-staging` | `eed3082` | 2026-09-28 | Verify on GitHub |
-| [#94](https://github.com/chayongchaya/toktickit/pull/94) | `fix/lab4-test-isolation` → `lab4-staging` | `6f42094` | 2026-09-28 | Verify on GitHub |
-| [#96](https://github.com/chayongchaya/toktickit/pull/96) | `feature/lab4-dashboards` → `lab4-staging` | `08b9388` | 2026-09-28 | Verify on GitHub |
-| [#97](https://github.com/chayongchaya/toktickit/pull/97) | `test/lab4-coverage` → `lab4-staging` | `b032c84` | 2026-09-28 | Verify on GitHub |
+| [#86](https://github.com/chayongchaya/toktickit/pull/86) | `docs/lab4-engineering-contract` → `lab4-staging` | `16eb035` | 2026-09-27 | ✅ Approved & Merged |
+| [#88](https://github.com/chayongchaya/toktickit/pull/88) | `feature/lab4-actions-taken-db` → `lab4-staging` | `0721195` | 2026-09-28 | ✅ Approved & Merged |
+| [#90](https://github.com/chayongchaya/toktickit/pull/90) | `feature/lab4-actions-taken-api` → `lab4-staging` | `57310fa` | 2026-09-28 | ✅ Approved & Merged |
+| [#92](https://github.com/chayongchaya/toktickit/pull/92) | `feature/lab4-actions-taken-ui` → `lab4-staging` | `eed3082` | 2026-09-28 | ✅ Approved & Merged |
+| [#94](https://github.com/chayongchaya/toktickit/pull/94) | `fix/lab4-test-isolation` → `lab4-staging` | `6f42094` | 2026-09-28 | ✅ Approved & Merged |
+| [#96](https://github.com/chayongchaya/toktickit/pull/96) | `feature/lab4-dashboards` → `lab4-staging` | `08b9388` | 2026-09-28 | ✅ Approved & Merged |
+| [#97](https://github.com/chayongchaya/toktickit/pull/97) | `test/lab4-coverage` → `lab4-staging` | `b032c84` | 2026-09-28 | ✅ Approved & Merged |
 
 ### Hardening branch
 
@@ -35,9 +35,15 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 
 | PR # | Reviewer | Comment | Author response |
 |---|---|---|---|
-| `[fill PR number]` | @chayanitkunt | `[paste actual review comment from GitHub]` | `[paste actual response from GitHub]` |
+| [#86](https://github.com/chayongchaya/toktickit/pull/86) | @chayanitkunt | Approved. Praised the Sprint 4 Spec-DD contract, API/UI alignment, and the SLA-focused test matrix. | Thanked the reviewer for the review and sign-off on the Spec-DD contract. |
+| [#88](https://github.com/chayongchaya/toktickit/pull/88) | @chayanitkunt | Approved. Praised the additive migration, indexes, cascade relation, idempotent seed fixtures, and row-count verification. | Thanked the reviewer for the database review and verification. |
+| [#90](https://github.com/chayongchaya/toktickit/pull/90) | @chayanitkunt | Approved. Praised server-managed actor/timestamp fields, cross-ticket isolation, TDD coverage, and API-01 to API-09. | Thanked the reviewer for the API review and sign-off. |
+| [#92](https://github.com/chayongchaya/toktickit/pull/92) | @chayanitkunt | Approved. Praised the Actions Taken tab, requester read-only boundary, form resilience, duplicate-submit prevention, and UI/A11Y coverage. | Thanked the reviewer for the UI review and sign-off. |
+| [#94](https://github.com/chayongchaya/toktickit/pull/94) | @chayanitkunt | Approved. Praised ephemeral fixtures, teardown, and the fix for parallel database mutation races. | Thanked the reviewer for the test-hardening review and sign-off. |
+| [#96](https://github.com/chayongchaya/toktickit/pull/96) | @chayanitkunt | Approved. Praised dashboard visual alignment, post-login routing, drill-down query parameters, role guards, and API/UI/E2E coverage. | Thanked the reviewer and confirmed the dashboard visuals, drill-down parameters, and role guards. |
+| [#97](https://github.com/chayongchaya/toktickit/pull/97) | @chayanitkunt | Approved. Praised workflow/concurrency coverage, `--no-file-parallelism`, responsive locator fixes, and Actions Taken/resolution E2E alignment. | Thanked the reviewer and confirmed the test-stabilization work removed the remaining flakiness. |
 
-No reviewer comments or approvals are inferred from local files. Complete this table from GitHub.
+The comments and responses above were checked against the GitHub review and issue-comment records for each linked PR.
 
 ## 4. Verification Evidence
 
@@ -62,20 +68,18 @@ No reviewer comments or approvals are inferred from local files. Complete this t
 
 ### Remaining GitHub review evidence
 
-The following items must be copied from the actual GitHub pages before PDF submission; no reviewer,
-approval, comment, or PR data is inferred locally:
+The following release-level items still need to be copied from the actual GitHub pages before PDF submission:
 
-- Reviewer name: Chayanit Kuntanarumitkul - 67070503408 (`@chayanitkunt`)
 - Hardening PR: `[fill actual GitHub PR URL]`
-- Approval/comment evidence: `[attach GitHub screenshot or link]`
+- Hardening approval/comment evidence: `[attach GitHub screenshot or link]`
 - Merge evidence into `main`: `[fill actual GitHub PR URL and merge timestamp]`
 
 ## 5. Summary
 
 Lab 4 feature branches were merged into `lab4-staging`, and the hardening branch contains the
 regression fixes, responsive evidence, documentation updates, and 12 responsive screenshots. The
-GitHub reviewer identity, comments, approvals, and release merge into `main` must be verified and
-added from GitHub before the final PDF is submitted.
+Feature-PR reviewer identity, comments, approvals, and responses are recorded above from GitHub.
+The hardening PR and release merge into `main` must still be added before the final PDF is submitted.
 
 ## Review focus
 
