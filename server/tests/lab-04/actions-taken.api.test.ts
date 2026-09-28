@@ -29,7 +29,15 @@ async function createFixtureTicket(requesterId: number, label: string) {
 
 async function fixtures() {
   const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
-  const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false } });
+  const requester = await prisma.user.findFirstOrThrow({
+    where: {
+      role: "REQUESTER",
+      isActive: true,
+      mustChangePassword: false,
+      NOT: { email: { startsWith: "first-login-" } },
+    },
+    orderBy: { id: "asc" },
+  });
   const requesterTicket = await createFixtureTicket(requester.id, "requester");
   const otherTicket = await createFixtureTicket(requester.id, "other");
   return { staff, requester, requesterTicket, otherTicket };
