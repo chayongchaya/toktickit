@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 const requester = { email: "jennifer.anderson@kmutt.ac.th", password: "DevPass123!" };
+const requesterWithActions = { email: "david.lee@kmutt.ac.th", password: "DevPass123!" };
 const staff = { email: "kevin.patel@tiktockit.com", password: "DevPass123!" };
 
 async function signIn(page: import("@playwright/test").Page, account: typeof requester) {
@@ -52,5 +53,20 @@ test.describe("Lab 4 hardening screenshots", () => {
     await page.getByRole("tab", { name: /Actions Taken/ }).click();
     await expectNoHorizontalOverflow(page);
     await page.screenshot({ path: `artifacts/lab-04/screenshots/actions-taken/${testInfo.project.name}.png`, fullPage: true });
+  });
+
+  test("captures requester read-only Actions Taken evidence", async ({ page }, testInfo) => {
+    await signIn(page, requesterWithActions);
+    await page.goto("/tickets");
+    await page.getByPlaceholder("Search by ticket number or summary...").fill("Email not syncing on mobile");
+    const firstTicket = page.locator('a[href^="/tickets/"]:not([href="/tickets/new"]):visible').filter({ hasText: "TKT-2026-000003" }).first();
+    await expect(firstTicket).toBeVisible();
+    const ticketHref = await firstTicket.getAttribute("href");
+    expect(ticketHref).toBeTruthy();
+    await page.goto(ticketHref!);
+    await expect(page.getByRole("heading", { name: /Actions Taken/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Add Action Taken|Edit/ })).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: `artifacts/lab-04/screenshots/actions-taken-requester/${testInfo.project.name}.png`, fullPage: true });
   });
 });
