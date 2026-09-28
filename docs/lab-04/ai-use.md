@@ -10,6 +10,19 @@ This record documents the AI assistance used during Lab 4 hardening.
 
 ## Prompt History
 
+| # | Prompt | Purpose / Outcome |
+| --- | --- | --- |
+| 1 | Audit Lab 2-3 regression failures and shared-database fixture races. | Distinguished application failures from fixture and isolation issues. |
+| 2 | Implement final hardening without expanding scope. | Checked placeholders, console errors, responsive behavior, accessibility, and documentation. |
+| 3 | Add responsive screenshot evidence for the Lab 4 page groups. | Produced 12 desktop, tablet, and mobile screenshots. |
+| 4 | Verify Requester Actions Taken is read-only. | Checked role-restricted UI behavior and related tests. |
+| 5 | Run server, client, and Playwright suites and update `tests.md` from observed results. | Synchronized Pass statuses with real test output. |
+| 6 | Add dedicated server-owned mapping and safe-failure tests. | Added UNIT-02 and SAFE-01 evidence. |
+| 7 | Test the additive migration against a Lab 3 PostgreSQL DB copy. | Compared row counts and verified `actionsTaken: []` for a legacy ticket. |
+| 8 | Align Lab 4 reviewer and AI-use documents with the Lab 3 format. | Matched the submission evidence structure without inventing GitHub review data. |
+
+### Additional prompt notes
+
 The coding assistance was provided through OpenAI Codex using a GPT-5-based coding model. The
 following prompts represent the main requests used during this hardening pass:
 
