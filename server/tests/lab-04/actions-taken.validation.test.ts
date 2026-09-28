@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateActionInput } from "../../src/routes/staff.js";
+import { buildActionTakenData, validateActionInput } from "../../src/routes/staff.js";
 
 const valid = { description: "Checked the device", result: "Device is working", followUpRequired: false };
 
@@ -18,7 +18,11 @@ describe("Actions Taken validator", () => {
     expect(validateActionInput({ ...valid, followUpRequired: true, followUpNote: " " })?.field).toBe("followUpNote");
   });
 
-  it("UNIT-02: validates server-owned fields outside the client input contract", () => {
-    expect(validateActionInput({ ...valid, performedById: 999999, actionDateTime: "2000-01-01T00:00:00.000Z" })).toBeNull();
+  it("UNIT-02: maps actor and timestamp from server arguments, ignoring client-owned overrides", () => {
+    const serverTime = new Date("2026-09-29T00:00:00.000Z");
+    const mapped = buildActionTakenData(42, 7, { ...valid, performedById: 999999, actionDateTime: "2000-01-01T00:00:00.000Z" }, serverTime);
+    expect(mapped.ticketId).toBe(42);
+    expect(mapped.performedById).toBe(7);
+    expect(mapped.actionDateTime).toBe(serverTime);
   });
 });

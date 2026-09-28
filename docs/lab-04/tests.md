@@ -9,9 +9,10 @@
 > submission, run the full suite (`npm test` in `server/` and `client/`, plus `npx playwright test` for
 > `e2e/lab-04/`), fix whatever the first real run surfaces, and only then flip the relevant rows to Pass.
 
-> **Verification update:** The initial offline note above is historical. Server tests passed 27 files /
-> 134 tests; client tests passed 19 files / 93 tests; the responsive screenshot capture passed 12/12
-> tests and produced all four Lab 4 page groups. Rows still marked **Planned** remain unverified.
+> **Verification update:** The initial offline note above is historical. The latest server run passed
+> 28 files / 135 tests, including UNIT-02 and SAFE-01. The latest client run passed 19 files / 93 tests.
+> The responsive screenshot capture passed 12/12 tests and produced
+> all four Lab 4 page groups. Rows still marked **Planned** remain unverified.
 
 ## 1. Test Strategy
 The Lab 4 test plan uses a layered strategy covering all **11 required test categories** represented in
@@ -69,7 +70,7 @@ UI Style each have their own traceable rows.
 | API-16 | AC-14 | API | Staff Dashboard requested by a Requester | 403 | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
 | API-17 | AC-13 | API | Staff Dashboard while unauthenticated | 401 | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
 | UNIT-01 | BR-04, BR-05 | Unit | Actions Taken validator: required fields, trimming, length caps, and conditional Follow-up Note | Valid values pass; invalid values fail with the expected field/rule | `server/tests/lab-04/actions-taken.validation.test.ts` | Pass |
-| UNIT-02 | BR-02, BR-03 | Unit | Server-side actor/timestamp mapping excludes client-supplied `performedById` and `actionDateTime` | Authenticated session user and server clock are the only sources of those fields | `server/tests/lab-04/actions-taken.validation.test.ts` | Planned |
+| UNIT-02 | BR-02, BR-03 | Unit | Server-side actor/timestamp mapping excludes client-supplied `performedById` and `actionDateTime` | Authenticated session user and server clock are the only sources of those fields | `server/tests/lab-04/actions-taken.validation.test.ts` | Pass |
 | STYLE-01 | FR-10, FR-14 | UI Style | Zen Green visual consistency on Dashboard and Actions Taken screens | Dashboard cards and non-color labels render with the documented accessible structure | `client/tests/lab-04/visual-style.test.tsx` | Pass |
 | STYLE-02 | FR-14 | UI Style | No duplicate/obsolete navigation or unfinished controls after Lab 4 integration | Displayed dashboard controls have defined destinations | `client/tests/lab-04/visual-style.test.tsx` | Pass |
 | MIGRATION-01 | FR-13, BR-07 | Migration | Apply Lab 4 migration to a copy of the Lab 3 database | Existing User/Ticket/Attachment/PublicComment/InternalNote row counts and values remain intact; only `ActionTaken` is added | `server/tests/lab-04/migration.test.ts` | Planned |
@@ -79,7 +80,7 @@ UI Style each have their own traceable rows.
 | PERF-02 | FR-01, FR-03 | Performance-Smoke | Ticket Detail with multiple Actions Taken remains responsive at API level | Detail query returns successfully with a two-action fixture | `server/tests/lab-04/dashboard.performance.test.ts` | Pass |
 | AUTH-01 | Authorization Matrix | Authorization | Direct API matrix for unauthenticated and cross-role dashboard access | Unauthenticated callers receive 401; wrong roles receive 403; Administrator receives staff dashboard 200 | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | AUTH-02 | AC-03, BR-06 | Authorization | Requester attempts to write an Actions Taken row directly | 403; no write route is available to the Requester | `server/tests/lab-04/authorization.api.test.ts` | Pass |
-| SAFE-01 | FR-13, FR-14 | API/Integration | 500/safe failure behavior and recoverable form-data preservation | Client receives generic safe error; no stack trace/internal data; entered Actions Taken form values remain after recoverable failure | `server/tests/lab-04/safe-failure.api.test.ts` + `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
+| SAFE-01 | FR-13, FR-14 | API/Integration | 500/safe failure behavior and recoverable form-data preservation | Client receives generic safe error; no stack trace/internal data; entered Actions Taken form values remain after recoverable failure | `server/tests/lab-04/safe-failure.api.test.ts` + `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | DUP-01 | FR-13, FR-14 | UI/Integration | Repeated Save click while create is in flight | Save is disabled and only one create call is issued | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | CONC-01 | BR-11 | Workflow/Regression | Two sequential status updates where the second caller uses stale workflow state | Stale/disallowed transition returns 409 and stored status remains the first caller's current status | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
 | WORKFLOW-01 | AC-09, BR-12 | Workflow/Regression | Requester sets the resolved-flag on an in-progress ticket that already has Actions Taken recorded | `currentStatus` stays `IN_PROGRESS`; flag response shows `problemAppearsResolved: true` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |

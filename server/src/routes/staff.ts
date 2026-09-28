@@ -58,6 +58,21 @@ export function validateActionInput(body: any) {
   return null;
 }
 
+export function buildActionTakenData(ticketId: number, performedById: number, body: any, actionDateTime = new Date()) {
+  return {
+    ticketId,
+    description: body.description.trim(),
+    result: body.result.trim(),
+    performedById,
+    actionDateTime,
+    followUpRequired: body.followUpRequired,
+    followUpNote: body.followUpRequired ? body.followUpNote.trim() : null,
+    attachmentNotes: typeof body.attachmentNotes === "string" && body.attachmentNotes.trim().length > 0
+      ? body.attachmentNotes.trim()
+      : null,
+  };
+}
+
 const ticketDetailInclude = {
   requester: { select: { id: true, name: true, email: true } },
   category: { select: { id: true, name: true } },
@@ -146,17 +161,7 @@ staffRouter.post("/tickets/:id/actions", async (req: Request, res: Response) => 
     if (!ticket) return res.status(404).json({ error: "Ticket not found" });
 
     const action = await prisma.actionTaken.create({
-      data: {
-        ticketId,
-        description: req.body.description.trim(),
-        result: req.body.result.trim(),
-        performedById: req.user!.id,
-        followUpRequired: req.body.followUpRequired,
-        followUpNote: req.body.followUpRequired ? req.body.followUpNote.trim() : null,
-        attachmentNotes: typeof req.body.attachmentNotes === "string" && req.body.attachmentNotes.trim().length > 0
-          ? req.body.attachmentNotes.trim()
-          : null,
-      },
+      data: buildActionTakenData(ticketId, req.user!.id, req.body),
       select: actionTakenSelect,
     });
     return res.status(201).json(action);
