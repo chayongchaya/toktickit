@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import request from "supertest";
+import bcrypt from "bcrypt";
 import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
-import { loginAs } from "../helpers/auth.js";
+import { loginAs, SEED_PASSWORD } from "../helpers/auth.js";
 
 const prisma = getPrisma();
 const fixtureTicketIds = new Set<number>();
+const fixtureRequesterIds = new Set<number>();
 
 async function createFixtureTicket(requesterId: number, label: string) {
   const category = await prisma.category.findFirstOrThrow({ where: { isActive: true } });
@@ -29,15 +31,17 @@ async function createFixtureTicket(requesterId: number, label: string) {
 
 async function fixtures() {
   const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
-  const requester = await prisma.user.findFirstOrThrow({
-    where: {
+  const requester = await prisma.user.create({
+    data: {
+      name: `Actions API Requester ${Date.now()}`,
+      email: `actions-api-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
+      passwordHash: await bcrypt.hash(SEED_PASSWORD, 10),
       role: "REQUESTER",
       isActive: true,
       mustChangePassword: false,
-      NOT: { email: { startsWith: "first-login-" } },
     },
-    orderBy: { id: "asc" },
   });
+  fixtureRequesterIds.add(requester.id);
   const requesterTicket = await createFixtureTicket(requester.id, "requester");
   const otherTicket = await createFixtureTicket(requester.id, "other");
   return { staff, requester, requesterTicket, otherTicket };
@@ -54,6 +58,10 @@ afterEach(async () => {
     await prisma.ticket.deleteMany({ where: { id: { in: ids } } });
   }
   fixtureTicketIds.clear();
+  if (fixtureRequesterIds.size > 0) {
+    await prisma.user.deleteMany({ where: { id: { in: [...fixtureRequesterIds] } } });
+  }
+  fixtureRequesterIds.clear();
 });
 
 async function createAction(ticketId: number, staffEmail: string, overrides: Record<string, unknown> = {}) {
