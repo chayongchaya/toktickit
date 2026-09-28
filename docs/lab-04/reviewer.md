@@ -1,8 +1,8 @@
 # Lab 4 — Peer Review Record
 
-This document is evidence for the Git workflow and release-hardening review. Repository-local facts
-are recorded below; reviewer comments, approvals, and merge details must be copied from the actual
-GitHub pages before PDF submission.
+This document is evidence for Part 1 (Git Use with Engineering Workflow) and the final
+hardening review of Lab 4. Repository-local facts are recorded below; reviewer comments,
+approvals, and merge details must be copied from the actual GitHub pages before PDF submission.
 
 ## 1. Reviewer Identity
 
@@ -27,7 +27,7 @@ GitHub pages before PDF submission.
 
 | Branch | Target | Commits | Remote status |
 |---|---|---|---|
-| `chore/lab4-hardening` | `[create actual GitHub PR]` | `fa64a03`, `61f995c`, `e7e4e3b` | Pushed to `origin/chore/lab4-hardening` |
+| `chore/lab4-hardening` | `[create actual GitHub PR]` | `fa64a03`, `61f995c`, `e7e4e3b`, `c70a24e`, `b5686c2`, `3951d53`, `9993058` | Pushed to `origin/chore/lab4-hardening` |
 
 ## 3. Comments Received and Responses
 
@@ -56,7 +56,7 @@ No reviewer comments or approvals are inferred from local files. Complete this t
   - `requester-dashboard/{desktop,tablet,mobile}.png`
   - `actions-taken/{desktop,tablet,mobile}.png`
   - `actions-taken-requester/{desktop,tablet,mobile}.png`
-- The full Lab 4 Playwright rerun is environment-sensitive: seeded accounts must be reset with `npm --prefix server run prisma:seed` after earlier E2E password-changing tests. The remaining Planned rows in `tests.md` are not claimed as complete.
+- The full Lab 4 Playwright rerun is environment-sensitive: seeded accounts must be reset with `npm --prefix server run prisma:seed` after earlier E2E password-changing tests.
 
 ### Remaining GitHub review evidence
 
