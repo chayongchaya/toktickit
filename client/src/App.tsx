@@ -11,6 +11,8 @@ import { TicketDetailPage } from "./pages/TicketDetailPage.js";
 import { StaffTicketQueuePage } from "./pages/staff/StaffTicketQueuePage.js";
 import { StaffTicketDetailPage } from "./pages/staff/StaffTicketDetailPage.js";
 import { UserManagementPage } from "./pages/admin/UserManagementPage.js";
+import { RequesterDashboardPage } from "./pages/RequesterDashboardPage.js";
+import { StaffDashboardPage } from "./pages/staff/StaffDashboardPage.js";
 
 type UiState = "idle" | "loading" | "success" | "error";
 
@@ -123,6 +125,13 @@ function AdminOnlyLayout({ children }: { children: React.ReactNode }) {
   return <ProtectedLayout>{children}</ProtectedLayout>;
 }
 
+function DashboardRoute() {
+  const { user } = useAuth();
+  if (user?.role === "REQUESTER") return <RequesterOnlyLayout><RequesterDashboardPage /></RequesterOnlyLayout>;
+  if (user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR") return <StaffOnlyLayout><StaffDashboardPage /></StaffOnlyLayout>;
+  return <Navigate to="/login" replace />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -132,6 +141,7 @@ export default function App() {
           <Route path="/lab1" element={<Lab1Screen />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
+          <Route path="/dashboard" element={<DashboardRoute />} />
 
           {/* Protected Routes สำหรับระบบตั๋ว */}
           <Route

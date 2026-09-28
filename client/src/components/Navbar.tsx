@@ -19,6 +19,7 @@ export const Navbar: React.FC = () => {
   const isCreateTicket = location.pathname === "/tickets/new";
   const isQueue = location.pathname === "/queue" || location.pathname.startsWith("/queue/");
   const isAdmin = location.pathname === "/admin/users";
+  const isDashboard = location.pathname === "/dashboard";
   const canUseQueue = user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR";
 
   const handleLogout = async () => {
@@ -40,6 +41,9 @@ export const Navbar: React.FC = () => {
           </Link>
 
           <div className="d-flex align-items-center gap-2">
+            <Link to="/dashboard" aria-current={isDashboard ? "page" : undefined} className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${isDashboard ? "bg-black bg-opacity-25" : "opacity-75"}`} style={{ textDecoration: "none" }}>
+              <span>▦</span> <span className="d-none d-sm-inline">Dashboard</span>
+            </Link>
             {canUseQueue && (
               <Link to="/queue" className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${isQueue ? "bg-black bg-opacity-25" : "opacity-75"}`} style={{ textDecoration: "none" }}>
                 <span>🎫</span> <span className="d-none d-sm-inline">My Queue</span>
