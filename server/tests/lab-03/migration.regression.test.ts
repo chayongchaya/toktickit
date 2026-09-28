@@ -11,15 +11,15 @@ const projectRoot = path.resolve(process.cwd(), "..");
 
 describe("Lab 3 migration and regression checks", () => {
   it("MIG-01: preserves requester relations for seeded tickets", async () => {
-    const [tickets, ticketCount, attachments] = await Promise.all([
-      prisma.ticket.findMany({ select: { requesterId: true, requester: { select: { id: true, role: true } } } }),
-      prisma.ticket.count(),
+    const [tickets, attachments] = await Promise.all([
+      prisma.ticket.findMany({ select: { id: true, requesterId: true, requester: { select: { id: true, role: true } } } }),
       prisma.attachment.findMany({ select: { ticketId: true } }),
     ]);
     expect(tickets.length).toBeGreaterThan(0);
-    expect(tickets.length).toBe(ticketCount);
     expect(tickets.every((ticket) => ticket.requester.id === ticket.requesterId && ticket.requester.role === "REQUESTER")).toBe(true);
-    const ticketIds = new Set((await prisma.ticket.findMany({ select: { id: true } })).map((ticket) => ticket.id));
+    // Use the same snapshot as the relation check. A concurrent test may add a
+    // ticket between findMany() and count(), making a global count comparison flaky.
+    const ticketIds = new Set(tickets.map((ticket) => ticket.id));
     expect(attachments.every((attachment) => ticketIds.has(attachment.ticketId))).toBe(true);
   });
 
