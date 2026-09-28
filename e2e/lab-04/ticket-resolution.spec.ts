@@ -18,9 +18,6 @@ async function createFixture() {
     const ticketResponse = await api.post("/api/tickets", { data: { categoryId: category.id, relatedSystemId: system.id, requestedPriority: "MEDIUM", summary: `E2E Resolution ${Date.now()}`, description: "Temporary ticket for resolution workflow E2E coverage." } });
     expect(ticketResponse.status()).toBe(201);
     const ticket = await ticketResponse.json();
-    await api.post("/api/auth/logout");
-    expect((await api.post("/api/auth/login", { data: staff })).ok()).toBeTruthy();
-    expect((await api.patch(`/api/staff/tickets/${ticket.id}/status`, { data: { currentStatus: "IN_PROGRESS" } })).status()).toBe(200);
     return { email, id: ticket.id as number };
   } finally { await api.dispose(); }
 }
@@ -54,11 +51,18 @@ test.describe("Lab 4 ticket resolution E2E", () => {
       await page.goto(`/tickets/${fixture.id}`);
       await page.getByRole("button", { name: "Mark problem appears resolved" }).click();
       await expect(page.getByText("You marked this as resolved")).toBeVisible();
-      await expect(page.getByText("In Progress")).toBeVisible();
+      await expect(page.getByText("New")).toBeVisible();
       await page.getByRole("button", { name: /E2E Resolution Requester/ }).click();
       await page.getByRole("button", { name: "Logout" }).click();
       await signIn(page, staff);
       await page.goto(`/queue/${fixture.id}`);
+      await expect(page.locator("#current-status option")).toHaveCount(4);
+      const statusOptions = await page.locator("#current-status option").evaluateAll((options) => options.map((option) => ({ value: (option as HTMLOptionElement).value, disabled: (option as HTMLOptionElement).disabled })));
+      expect(statusOptions.filter((option) => !option.disabled && option.value).map((option) => option.value)).toEqual(["OPEN", "IN_PROGRESS", "CANCELLED"]);
+      await page.locator("#current-status").selectOption("OPEN");
+      await expect(page.getByText("Status saved.").first()).toBeVisible();
+      await page.locator("#current-status").selectOption("IN_PROGRESS");
+      await expect(page.getByText("Status saved.").first()).toBeVisible();
       await page.locator("#current-status").selectOption("RESOLVED");
       await expect(page.getByText("Status saved.").first()).toBeVisible();
       await expect(page.locator(".badge").filter({ hasText: "RESOLVED" })).toBeVisible();

@@ -1,15 +1,27 @@
 import { afterEach, describe, expect, it } from "vitest";
 import request from "supertest";
+import bcrypt from "bcrypt";
 import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
 import { TICKET_STATUSES, TICKET_TRANSITIONS } from "../../src/lib/ticketTransitions.js";
-import { loginAs } from "../helpers/auth.js";
+import { loginAs, SEED_PASSWORD } from "../helpers/auth.js";
 
 const prisma = getPrisma();
 const fixtureTicketIds = new Set<number>();
+const fixtureRequesterIds = new Set<number>();
 
 async function createFixture(status: string) {
-  const requester = await prisma.user.findUniqueOrThrow({ where: { email: "jennifer.anderson@kmutt.ac.th" } });
+  const requester = await prisma.user.create({
+    data: {
+      name: `Workflow Requester ${Date.now()}`,
+      email: `workflow-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
+      passwordHash: await bcrypt.hash(SEED_PASSWORD, 10),
+      role: "REQUESTER",
+      isActive: true,
+      mustChangePassword: false,
+    },
+  });
+  fixtureRequesterIds.add(requester.id);
   const category = await prisma.category.findFirstOrThrow({ where: { isActive: true } });
   const relatedSystem = await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } });
   const ticket = await prisma.ticket.create({ data: {
@@ -29,6 +41,8 @@ afterEach(async () => {
     await prisma.ticket.deleteMany({ where: { id: { in: ids } } });
   }
   fixtureTicketIds.clear();
+  await prisma.user.deleteMany({ where: { id: { in: [...fixtureRequesterIds] } } });
+  fixtureRequesterIds.clear();
 });
 
 describe("Lab 4 ticket workflow regression", () => {
@@ -57,6 +71,17 @@ describe("Lab 4 ticket workflow regression", () => {
     const response = await request(app).patch(`/api/staff/tickets/${ticket.id}/status`)
       .set("Cookie", await loginAs(app, requester.email)).send({ currentStatus: "RESOLVED" });
     expect(response.status).toBe(403);
+  });
+
+  it("CONC-01: rejects a stale second status update without changing stored status", async () => {
+    const { ticket } = await createFixture("IN_PROGRESS");
+    const staff = await prisma.user.findUniqueOrThrow({ where: { email: "kevin.patel@tiktockit.com" } });
+    const cookie = await loginAs(app, staff.email);
+    const first = await request(app).patch(`/api/staff/tickets/${ticket.id}/status`).set("Cookie", cookie).send({ currentStatus: "RESOLVED" });
+    expect(first.status).toBe(200);
+    const stale = await request(app).patch(`/api/staff/tickets/${ticket.id}/status`).set("Cookie", cookie).send({ currentStatus: "RESOLVED" });
+    expect(stale.status).toBe(409);
+    expect((await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } })).currentStatus).toBe("RESOLVED");
   });
 
   it("WORKFLOW-04: rejects every disallowed transition from all eight statuses", async () => {
