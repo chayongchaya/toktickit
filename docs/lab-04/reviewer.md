@@ -33,17 +33,89 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 
 ## 3. Comments Received and Responses
 
-| PR # | Reviewer | Comment | Author response |
-|---|---|---|---|
-| [#86](https://github.com/chayongchaya/toktickit/pull/86) | @chayanitkunt | Approved. Praised the Sprint 4 Spec-DD contract, API/UI alignment, and the SLA-focused test matrix. | Thanked the reviewer for the review and sign-off on the Spec-DD contract. |
-| [#88](https://github.com/chayongchaya/toktickit/pull/88) | @chayanitkunt | Approved. Praised the additive migration, indexes, cascade relation, idempotent seed fixtures, and row-count verification. | Thanked the reviewer for the database review and verification. |
-| [#90](https://github.com/chayongchaya/toktickit/pull/90) | @chayanitkunt | Approved. Praised server-managed actor/timestamp fields, cross-ticket isolation, TDD coverage, and API-01 to API-09. | Thanked the reviewer for the API review and sign-off. |
-| [#92](https://github.com/chayongchaya/toktickit/pull/92) | @chayanitkunt | Approved. Praised the Actions Taken tab, requester read-only boundary, form resilience, duplicate-submit prevention, and UI/A11Y coverage. | Thanked the reviewer for the UI review and sign-off. |
-| [#94](https://github.com/chayongchaya/toktickit/pull/94) | @chayanitkunt | Approved. Praised ephemeral fixtures, teardown, and the fix for parallel database mutation races. | Thanked the reviewer for the test-hardening review and sign-off. |
-| [#96](https://github.com/chayongchaya/toktickit/pull/96) | @chayanitkunt | Approved. Praised dashboard visual alignment, post-login routing, drill-down query parameters, role guards, and API/UI/E2E coverage. | Thanked the reviewer and confirmed the dashboard visuals, drill-down parameters, and role guards. |
-| [#97](https://github.com/chayongchaya/toktickit/pull/97) | @chayanitkunt | Approved. Praised workflow/concurrency coverage, `--no-file-parallelism`, responsive locator fixes, and Actions Taken/resolution E2E alignment. | Thanked the reviewer and confirmed the test-stabilization work removed the remaining flakiness. |
+The following preserves the review comments and author responses from GitHub.
 
-The comments and responses above were checked against the GitHub review and issue-comment records for each linked PR.
+### PR #86 - Engineering contract
+
+**@chayanitkunt:**
+
+> Outstanding work establishing the Sprint 4 Spec-DD engineering contract! Approved
+>
+> - **Spec-DD Foundation:** Clear definitions for SLA state transitions, escalation triggers, and immutable activity audit logs in `specification.md`.
+> - **API & UI Alignment:** Standardized endpoint contracts (`/activities`, `/escalate`, `/metrics`) and UI tokens for SLA badges (Healthy, Warning, Breached).
+> - **Test Matrix:** Well-structured test coverage mapping (SLA-01 through E2E-04) ensuring clear verification criteria before implementation.
+
+**Author response:**
+
+> Thank you so much for the thorough review and sign-off on the Sprint 4 Spec-DD contract!
+
+### PR #88 - Actions Taken DB
+
+**@chayanitkunt:**
+
+> Excellent database engineering for the Actions Taken foundation. The additive-only SQL migration guarantees zero disruption to legacy Lab 1–3 schema data, and configuring indexes on ticketId and performedById alongside onDelete: Cascade ensures optimal performance and clean relational integrity. The idempotent seed fixtures covering edge cases (0, 1, and multiple actions with follow-up flags) and thorough row-count verification make this solid.
+
+**Author response:**
+
+> Thank you so much for the thorough review and verification of the database layer.
+
+### PR #90 - Actions Taken API
+
+**@chayanitkunt:**
+
+> Robust backend API delivery for the Actions Taken endpoints. Enforcing server-managed timestamps (actionDateTime) and session-derived actors (performedById) effectively prevents tampering, while the cross-ticket isolation guard on PATCH ensures bulletproof data integrity. Adhering to TDD with all test suites (API-01 through API-09) green across 107 tests and atomic commits makes this clean and completely audit-ready.
+
+**Author response:**
+
+> Thank you so much for the thorough review and sign-off on the API implementation.
+
+### PR #92 - Actions Taken UI
+
+**@chayanitkunt:**
+
+> Superb work delivering the client-side Actions Taken UI. Replacing the placeholder with a dedicated tab and dynamic badge count gives Staff an intuitive workflow, while strictly rendering a read-only audit log for Requesters enforces proper role separation. Form resilience features—such as in-flight double-submission prevention (§8.5), preserving user inputs during API errors, and conditional field rendering for follow-ups—provide excellent UX. With UI-01 through UI-08 and A11Y-01 passing cleanly, this is ready to merge.
+
+**Author response:**
+
+> Thank you so much for the detailed review and sign-off on the UI layer.
+
+### PR #94 - Test isolation
+
+**@chayanitkunt:**
+
+> Essential and well-architected test-hardening fix. Replacing shared seeded records with dedicated, ephemeral fixtures and explicit afterEach teardown cleanly eliminates parallel database mutation collisions. Decoupling requester fixtures from the concurrent authentication suites guarantees deterministic execution and wipes out the intermittent race conditions. With 20/20 test files and 107/107 tests passing consistently, this is solid.
+
+**Author response:**
+
+> Thank you so much for the thorough review and sign-off on the test-hardening fix.
+
+### PR #96 - Dashboards
+
+**@chayanitkunt:**
+
+> Approved!
+>
+> - **Visual Alignment Polish:** Great addition with commit `62af114` to fine-tune the dashboard visuals against the Sprint 4 UI specification.
+> - **Full-Stack Execution:** Post-login `/dashboard` landing, URL search param drill-downs (`?status=`, `?owner=`, `?currentStatus=`), and role boundaries are rock solid.
+> - **Test Integrity:** All API (10–17), UI (09–12), and E2E (05–06) test suites passing cleanly.
+
+**Author response:**
+
+> Thank you so much for the comprehensive review and approval. The dashboard visuals, drill-down parameters, and role guards are officially locked in.
+
+### PR #97 - Coverage
+
+**@chayanitkunt:**
+
+> Outstanding test stabilization and coverage expansion!
+>
+> - **Workflow & Concurrency Coverage:** `ticket-workflow.api.test.ts` thoroughly verifies WORKFLOW-01..06 and CONC-01 stale transition rules with isolated fixtures.
+> - **DB Race Condition Fix:** Adding `--no-file-parallelism` to the server test script cleanly prevents shared PostgreSQL state pollution during integration runs.
+> - **E2E & Spec Alignment:** Responsive locator fixes for mobile navbars and E2E specs for Actions Taken/Resolution keep testing aligned with `docs/lab-04/tests.md`.
+
+**Author response:**
+
+> Thank you so much for the thorough review and sign-off on the test stabilization and coverage expansion! Passing --no-file-parallelism and refining the mobile navbar locators completely removes the remaining flakiness.
 
 ## 4. Verification Evidence
 
