@@ -7,7 +7,7 @@ import { loginAs } from "../helpers/auth.js";
 const prisma = getPrisma();
 
 describe("Staff Dashboard API", () => {
-  it("API-12: returns queue-wide and current-user dashboard cards", async () => {
+  it("API-13/API-14: returns queue-wide and current-user dashboard cards", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true, mustChangePassword: false }, orderBy: { id: "asc" } });
     const response = await request(app).get("/api/staff/dashboard").set("Cookie", await loginAs(app, staff.email));
     expect(response.status).toBe(200);
@@ -17,7 +17,19 @@ describe("Staff Dashboard API", () => {
     expect(response.body.cards.myAssigned).toBe(expectedAssigned);
   });
 
-  it("API-13: rejects requesters from the staff dashboard", async () => {
+  it("API-15: allows Administrators to use the staff dashboard", async () => {
+    const admin = await prisma.user.findFirstOrThrow({ where: { role: "ADMINISTRATOR", isActive: true, mustChangePassword: false } });
+    const response = await request(app).get("/api/staff/dashboard").set("Cookie", await loginAs(app, admin.email));
+    expect(response.status).toBe(200);
+    expect(response.body.cards).toEqual(expect.objectContaining({ new: expect.any(Number), unassigned: expect.any(Number) }));
+  });
+
+  it("API-17: rejects unauthenticated callers", async () => {
+    const response = await request(app).get("/api/staff/dashboard");
+    expect(response.status).toBe(401);
+  });
+
+  it("API-16: rejects requesters from the staff dashboard", async () => {
     const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const response = await request(app).get("/api/staff/dashboard").set("Cookie", await loginAs(app, requester.email));
     expect(response.status).toBe(403);

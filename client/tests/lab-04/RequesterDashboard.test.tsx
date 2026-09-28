@@ -8,12 +8,13 @@ vi.mock("../../src/api.js", async () => {
   const actual = await vi.importActual<typeof import("../../src/api.js")>("../../src/api.js");
   return { ...actual, getRequesterDashboard };
 });
+vi.mock("../../src/context/AuthContext.js", () => ({ useAuth: () => ({ user: { id: 2, name: "Jennifer Anderson", role: "REQUESTER" } }) }));
 
 describe("Requester dashboard", () => {
   it("UI-09: renders database-backed cards and ticket links", async () => {
     getRequesterDashboard.mockResolvedValue({ cards: { myOpenTickets: 3, waitingForRequester: 2, resolved: 1, closed: 4 }, recentTickets: [{ id: 9, ticketNumber: "TKT-2026-000009", summary: "VPN issue", currentStatus: "OPEN", updatedAt: "2026-01-01T00:00:00.000Z" }] });
     render(<MemoryRouter><RequesterDashboardPage /></MemoryRouter>);
-    expect(await screen.findByText("Requester Dashboard")).toBeInTheDocument();
+    expect(await screen.findByText(/Welcome,/)).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /TKT-2026-000009/ })).toHaveAttribute("href", "/tickets/9");
     expect(screen.getAllByRole("link", { name: /View tickets/ })[0]).toHaveAttribute("href", "/tickets?currentStatus=OPEN");

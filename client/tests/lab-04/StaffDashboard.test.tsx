@@ -14,7 +14,7 @@ describe("Staff dashboard", () => {
   it("UI-11: renders queue cards and ownership drill-down links", async () => {
     getStaffDashboard.mockResolvedValue({ cards: { new: 1, open: 2, inProgress: 3, waitingForRequester: 4, myAssigned: 5, unassigned: 6 }, recentTickets: [] });
     render(<MemoryRouter><StaffDashboardPage /></MemoryRouter>);
-    expect(await screen.findByText("Staff Dashboard")).toBeInTheDocument();
+    expect(await screen.findByText("Welcome back, Kevin Patel!")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Open queue/ })[4]).toHaveAttribute("href", "/queue?owner=7");
   });
@@ -22,6 +22,6 @@ describe("Staff dashboard", () => {
   it("UI-12: shows a loading state before the dashboard response", () => {
     getStaffDashboard.mockReturnValue(new Promise(() => undefined));
     render(<MemoryRouter><StaffDashboardPage /></MemoryRouter>);
-    expect(screen.getByRole("status")).toHaveTextContent("Loading dashboard");
+    expect(screen.getByRole("status")).toHaveTextContent("Loading recent tickets");
   });
 });

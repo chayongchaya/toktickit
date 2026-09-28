@@ -3,6 +3,7 @@ import request from "supertest";
 import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
 import { loginAs } from "../helpers/auth.js";
+import { hashPassword } from "../../src/lib/password.js";
 
 const prisma = getPrisma();
 
@@ -19,7 +20,25 @@ describe("Requester Dashboard API", () => {
     expect(response.body.recentTickets.every((ticket: { id: number }) => typeof ticket.id === "number")).toBe(true);
   });
 
-  it("API-11: rejects staff from the requester dashboard", async () => {
+  it("API-11: rejects unauthenticated callers", async () => {
+    const response = await request(app).get("/api/tickets/dashboard");
+    expect(response.status).toBe(401);
+  });
+
+  it("API-12: returns zero cards for a requester with no tickets", async () => {
+    const email = `dashboard-empty-${Date.now()}@example.com`;
+    const user = await prisma.user.create({ data: { name: "Dashboard Empty Fixture", email, role: "REQUESTER", isActive: true, mustChangePassword: false, passwordHash: await hashPassword("DevPass123!") } });
+    try {
+      const response = await request(app).get("/api/tickets/dashboard").set("Cookie", await loginAs(app, email));
+      expect(response.status).toBe(200);
+      expect(response.body.cards).toEqual({ myOpenTickets: 0, waitingForRequester: 0, resolved: 0, closed: 0 });
+      expect(response.body.recentTickets).toEqual([]);
+    } finally {
+      await prisma.user.delete({ where: { id: user.id } });
+    }
+  });
+
+  it("API-16: rejects staff from the requester dashboard", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true, mustChangePassword: false } });
     const response = await request(app).get("/api/tickets/dashboard").set("Cookie", await loginAs(app, staff.email));
     expect(response.status).toBe(403);
