@@ -21,7 +21,7 @@ const actionTakenSelect = {
   performedBy: { select: { id: true, name: true, role: true } },
 } as const;
 
-function validateActionInput(body: any) {
+export function validateActionInput(body: any) {
   const description = body?.description;
   const result = body?.result;
   const followUpRequired = body?.followUpRequired;

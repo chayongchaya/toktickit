@@ -41,8 +41,8 @@ No reviewer comments or approvals are inferred from local files. Complete this t
 
 - Branch: `chore/lab4-hardening`
 - Base: merged `origin/lab4-staging`
-- Server tests: 23 files / 122 tests passed with the shared-database-safe test command.
-- Client tests: 18 files / 90 tests passed.
+- Server tests: 27 files / 134 tests passed with the shared-database-safe test command.
+- Client tests: 19 files / 93 tests passed.
 - Lab 4 Playwright suite: 17 passed, 4 skipped; database-mutating flows are intentionally skipped on tablet/mobile.
 - Workflow coverage includes stale status rejection, all disallowed transitions, Actions Taken visibility, and empty Actions Taken arrays.
 

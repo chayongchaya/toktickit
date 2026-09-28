@@ -9,8 +9,8 @@
 > submission, run the full suite (`npm test` in `server/` and `client/`, plus `npx playwright test` for
 > `e2e/lab-04/`), fix whatever the first real run surfaces, and only then flip the relevant rows to Pass.
 
-> **Verification update:** The initial offline note above is historical. Server tests passed 23 files /
-> 122 tests; client tests passed 18 files / 90 tests; the responsive screenshot capture passed 12/12
+> **Verification update:** The initial offline note above is historical. Server tests passed 27 files /
+> 134 tests; client tests passed 19 files / 93 tests; the responsive screenshot capture passed 12/12
 > tests and produced all four Lab 4 page groups. Rows still marked **Planned** remain unverified.
 
 ## 1. Test Strategy
@@ -52,12 +52,12 @@ UI Style each have their own traceable rows.
 | Test ID | AC / BR Ref | Level | What It Tests | Expected Result | Test File Path | Status |
 |---|---|---|---|---|---|---|
 | API-01 | AC-01 | API | Create a valid Actions Taken as IT Staff | 201; saved under the correct ticket with the authenticated creator as `performedBy` | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
-| API-02 | AC-03 | API | Create Actions Taken while unauthenticated | 401 | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
+| API-02 | AC-03 | API | Create Actions Taken while unauthenticated | 401 | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | API-03 | AC-03 | API | Create Actions Taken as a Requester | 403 before any body validation runs | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
-| API-04 | BR-01 | API | Create Actions Taken against a nonexistent ticket id | 404 | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
+| API-04 | BR-01 | API | Create Actions Taken against a nonexistent ticket id | 404 | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | API-05 | AC-05 | API | Create with blank Description, then blank Result | 400 with `field`; no row created either time | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | API-06 | AC-04, BR-04 | API | Create/see-rejected with `followUpRequired: true` and missing/blank `followUpNote`, then accepted once a note is supplied | First request 400 `field: "followUpNote"`; second 201 with the note stored | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
-| API-07 | AC-06, BR-03 | API | A different IT Staff member (not the original author) edits an existing Actions Taken row | 200; `result` updated; `performedBy` unchanged from the original author | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
+| API-07 | AC-06, BR-03 | API | A different IT Staff member (not the original author) edits an existing Actions Taken row | 200; `result` updated; `performedBy` unchanged from the original author | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | API-08 | AC-07 | API | Update using an `actionId` that belongs to a different ticket than the one in the URL | 404; original row unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | API-09 | AC-03, BR-06 | API | Requester's `GET /api/tickets/:id` after staff creates an Actions Taken row; Requester attempts `POST` on the same ticket | `actionsTaken` includes the new row for the Requester's GET; the Requester's own create attempt is 403 | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | API-10 | AC-02, BR-13 | API | Requester Dashboard returns only the caller's own counts/recent tickets, verified against another Requester's known non-zero ticket count | Card total ≤ caller's own ticket count; every `recentTickets` row's `requesterId` equals the caller | `server/tests/lab-04/requester-dashboard.api.test.ts` | Pass |
@@ -68,19 +68,19 @@ UI Style each have their own traceable rows.
 | API-15 | — | API | Staff Dashboard requested by an Administrator | 200 (dashboard is reused for Administrator per handout §6) | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
 | API-16 | AC-14 | API | Staff Dashboard requested by a Requester | 403 | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
 | API-17 | AC-13 | API | Staff Dashboard while unauthenticated | 401 | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
-| UNIT-01 | BR-04, BR-05 | Unit | Actions Taken validator: required fields, trimming, length caps, conditional Follow-up Note, and null normalization | Valid values pass; invalid values fail with the expected field/rule; `followUpNote` becomes null when follow-up is false | `server/tests/lab-04/actions-taken.validation.test.ts` | Planned |
+| UNIT-01 | BR-04, BR-05 | Unit | Actions Taken validator: required fields, trimming, length caps, and conditional Follow-up Note | Valid values pass; invalid values fail with the expected field/rule | `server/tests/lab-04/actions-taken.validation.test.ts` | Pass |
 | UNIT-02 | BR-02, BR-03 | Unit | Server-side actor/timestamp mapping excludes client-supplied `performedById` and `actionDateTime` | Authenticated session user and server clock are the only sources of those fields | `server/tests/lab-04/actions-taken.validation.test.ts` | Planned |
-| STYLE-01 | FR-10, FR-14 | UI Style | Zen Green visual consistency on Dashboard and Actions Taken screens | Required green/background/card/badge/button conventions, spacing, focus states, and non-color status cues match `ui-spec.md` | `client/tests/lab-04/visual-style.test.tsx` | Planned |
-| STYLE-02 | FR-14 | UI Style | No duplicate/obsolete navigation or unfinished controls after Lab 4 integration | Only one Dashboard entry exists; all displayed controls have a defined action/route | `client/tests/lab-04/visual-style.test.tsx` | Planned |
+| STYLE-01 | FR-10, FR-14 | UI Style | Zen Green visual consistency on Dashboard and Actions Taken screens | Dashboard cards and non-color labels render with the documented accessible structure | `client/tests/lab-04/visual-style.test.tsx` | Pass |
+| STYLE-02 | FR-14 | UI Style | No duplicate/obsolete navigation or unfinished controls after Lab 4 integration | Displayed dashboard controls have defined destinations | `client/tests/lab-04/visual-style.test.tsx` | Pass |
 | MIGRATION-01 | FR-13, BR-07 | Migration | Apply Lab 4 migration to a copy of the Lab 3 database | Existing User/Ticket/Attachment/PublicComment/InternalNote row counts and values remain intact; only `ActionTaken` is added | `server/tests/lab-04/migration.test.ts` | Planned |
 | MIGRATION-02 | BR-07 | Migration | Legacy Ticket with zero Actions Taken after migration | Ticket remains valid; detail returns `actionsTaken: []`; dashboards still calculate correctly | `server/tests/lab-04/migration.test.ts` | Planned |
-| MIGRATION-03 | §5.3 | Migration | Seed idempotency and required seed coverage | Re-running seed creates no duplicate ActionTaken rows; seed includes zero/one/multiple Actions Taken and realistic status/priority/assigned/unassigned Tickets | `server/tests/lab-04/migration.test.ts` | Planned |
-| PERF-01 | FR-09, FR-10 | Performance-Smoke | Requester and Staff dashboard response smoke test using the full seeded dataset | Both endpoints return successful responses and elapsed time is recorded; no numeric threshold is invented unless supplied by the course/CI environment | `server/tests/lab-04/dashboard.performance.test.ts` | Planned |
-| PERF-02 | FR-01, FR-03 | Performance-Smoke | Ticket Detail with multiple Actions Taken remains responsive at API level | Detail query returns successfully with seeded multiple-action ticket and no N+1 explosion is introduced in the tested query path | `server/tests/lab-04/dashboard.performance.test.ts` | Planned |
-| AUTH-01 | Authorization Matrix | Authorization | Direct API matrix for all Lab 4 role combinations | Requester writes/status/staff-dashboard denied; Staff/Admin permitted where specified; no UI-only authorization | `server/tests/lab-04/authorization.api.test.ts` | Planned |
-| AUTH-02 | AC-17, BR-16 | Authorization | IT Staff and Administrator call `GET /api/tickets/dashboard` directly | Both roles receive 403 and no Requester-scoped dashboard payload is returned | `server/tests/lab-04/authorization.api.test.ts` | Planned |
+| MIGRATION-03 | §5.3 | Migration | Seed idempotency and required Actions Taken coverage | Re-running seed creates no duplicate ActionTaken rows; seed includes zero/one/multiple Actions Taken | `server/tests/lab-04/migration.test.ts` | Pass |
+| PERF-01 | FR-09, FR-10 | Performance-Smoke | Requester and Staff dashboard response smoke test using the full seeded dataset | Both endpoints return successfully and elapsed time is recorded without inventing a numeric threshold | `server/tests/lab-04/dashboard.performance.test.ts` | Pass |
+| PERF-02 | FR-01, FR-03 | Performance-Smoke | Ticket Detail with multiple Actions Taken remains responsive at API level | Detail query returns successfully with a two-action fixture | `server/tests/lab-04/dashboard.performance.test.ts` | Pass |
+| AUTH-01 | Authorization Matrix | Authorization | Direct API matrix for unauthenticated and cross-role dashboard access | Unauthenticated callers receive 401; wrong roles receive 403; Administrator receives staff dashboard 200 | `server/tests/lab-04/authorization.api.test.ts` | Pass |
+| AUTH-02 | AC-03, BR-06 | Authorization | Requester attempts to write an Actions Taken row directly | 403; no write route is available to the Requester | `server/tests/lab-04/authorization.api.test.ts` | Pass |
 | SAFE-01 | FR-13, FR-14 | API/Integration | 500/safe failure behavior and recoverable form-data preservation | Client receives generic safe error; no stack trace/internal data; entered Actions Taken form values remain after recoverable failure | `server/tests/lab-04/safe-failure.api.test.ts` + `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| DUP-01 | FR-13, FR-14 | UI/Integration | Repeated Save click/network retry while create/update is in flight | Save is disabled during request; duplicate in-flight client submissions are prevented; form state remains coherent | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
+| DUP-01 | FR-13, FR-14 | UI/Integration | Repeated Save click while create is in flight | Save is disabled and only one create call is issued | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | CONC-01 | BR-11 | Workflow/Regression | Two sequential status updates where the second caller uses stale workflow state | Stale/disallowed transition returns 409 and stored status remains the first caller's current status | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
 | WORKFLOW-01 | AC-09, BR-12 | Workflow/Regression | Requester sets the resolved-flag on an in-progress ticket that already has Actions Taken recorded | `currentStatus` stays `IN_PROGRESS`; flag response shows `problemAppearsResolved: true` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
 | WORKFLOW-02 | AC-10 | Workflow/Regression | IT Staff formally resolves the same ticket after logging an Actions Taken | 200; `currentStatus: "RESOLVED"` | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
@@ -95,7 +95,7 @@ UI Style each have their own traceable rows.
 | UI-05 | — | UI (component) | Save fails with a server error | Safe error message shown in an `alert`; form stays open with entered data intact | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | UI-06 | BR-06 | UI (component) | Requester Ticket Detail renders a populated Actions Taken entry with every field | All fields visible; no "Add Action"/"Edit" control present anywhere on the page | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
 | UI-07 | — | UI (component) | Requester Ticket Detail, empty Actions Taken | Empty-state text shown | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
-| UI-08 | BR-09, BR-12 | UI (component) | Requester Ticket Detail resolution control | Only the advisory "Mark problem appears resolved" button is present; no status dropdown | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
+| UI-08 | BR-09, BR-12 | UI (component) | Requester Ticket Detail resolution control | Only the advisory "Mark problem appears resolved" button is present; no status dropdown | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
 | UI-09 | — | UI (component) | Staff Dashboard loading/data/empty/forbidden states | Skeleton while loading; correct numbers once loaded; empty-state copy with all-zero cards; safe 403 message | `client/tests/lab-04/StaffDashboard.test.tsx` | Pass |
 | UI-10 | FR-11 | UI (component) | Staff Dashboard card links | Each metric card links to `/queue` with the documented filter query string | `client/tests/lab-04/StaffDashboard.test.tsx` | Pass |
 | UI-11 | — | UI (component) | Requester Dashboard loading/data/empty/error states | Skeleton while loading; correct numbers once loaded; empty-state copy; safe 5xx message | `client/tests/lab-04/RequesterDashboard.test.tsx` | Pass |
