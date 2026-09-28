@@ -43,6 +43,10 @@ No reviewer comments or approvals are inferred from local files. Complete this t
 - Base: merged `origin/lab4-staging`
 - Server tests: 28 files / 135 tests passed with the shared-database-safe test command.
 - Client tests: 19 files / 93 tests passed.
+- Migration-copy evidence: `toktickit_migration_test` contained the Lab 3 migration history before
+  applying `20260928000000_lab4_actions_taken`; User/Ticket/Attachment/PublicComment/InternalNote
+  counts were 1/1/0/0/0 before and after, and the legacy Ticket returned `actionsTaken: []`.
+- Dedicated migration-copy test: 2/2 passed in `server/tests/lab-04/migration-copy.test.ts`.
 - Lab 4 Playwright suite: 17 passed, 4 skipped; database-mutating flows are intentionally skipped on tablet/mobile.
 - Workflow coverage includes stale status rejection, all disallowed transitions, Actions Taken visibility, and empty Actions Taken arrays.
 
