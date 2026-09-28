@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
-  ApiError, getInternalNotes, getPublicComments, getStaffOwners, getStaffTicket, InternalNote,
+  ActionTaken, ActionTakenInput, ApiError, createActionTaken, getInternalNotes, getPublicComments, getStaffOwners, getStaffTicket, InternalNote,
   postInternalNote, postPublicComment, PublicComment, RequesterUser, Ticket,
-  updateStaffTicketOwner, updateStaffTicketPriority, updateStaffTicketStatus,
+  updateActionTaken, updateStaffTicketOwner, updateStaffTicketPriority, updateStaffTicketStatus,
 } from "../../api.js";
 import { useAuth } from "../../context/AuthContext.js";
 
@@ -33,6 +33,26 @@ const priorityBadge = (value?: string) => <span className="badge rounded-pill px
 const roleBadge = (role: string) => { const token = roleTokens[role] ?? { label: role, backgroundColor: "#F3F4F6", color: "#374151", border: "#E5E7EB" }; return <span className="badge rounded-pill px-2 py-1 fw-normal" style={{ backgroundColor: token.backgroundColor, color: token.color, border: token.border === "none" ? "none" : `1px solid ${token.border}`, fontSize: "0.7rem" }}>{token.label}</span>; };
 const formatStatus = (value: string) => value.replaceAll("_", " ");
 const formatDate = (value: string) => new Date(value).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+const emptyAction = (): ActionTakenInput => ({ description: "", result: "", followUpRequired: false, followUpNote: "", attachmentNotes: "" });
+
+function ActionTakenPanel({
+  ticket, open, draft, editingActionId, error, saving, onOpen, onCancel, onSubmit, onChange,
+}: {
+  ticket: Ticket;
+  open: boolean;
+  draft: ActionTakenInput;
+  editingActionId: number | null;
+  error: string | null;
+  saving: boolean;
+  onOpen: (action?: ActionTaken) => void;
+  onCancel: () => void;
+  onSubmit: (event: React.FormEvent) => void;
+  onChange: (draft: ActionTakenInput) => void;
+}) {
+  const actions = ticket.actionsTaken ?? [];
+  if (open) return <form onSubmit={onSubmit} noValidate><h2 className="h6 fw-bold mb-3">{editingActionId === null ? "Add Action Taken" : "Edit Action Taken"}</h2>{error && <div className="alert alert-danger py-2 small" role="alert">{error}</div>}<div className="mb-3"><label htmlFor="action-description" className="form-label small fw-semibold">Action Description</label><textarea id="action-description" className="form-control" rows={3} value={draft.description} onChange={(event) => onChange({ ...draft, description: event.target.value })} disabled={saving} /></div><div className="mb-3"><label htmlFor="action-result" className="form-label small fw-semibold">Result</label><textarea id="action-result" className="form-control" rows={3} value={draft.result} onChange={(event) => onChange({ ...draft, result: event.target.value })} disabled={saving} /></div><div className="form-check mb-3"><input id="action-follow-up" type="checkbox" className="form-check-input" checked={draft.followUpRequired} onChange={(event) => onChange({ ...draft, followUpRequired: event.target.checked })} disabled={saving} /><label htmlFor="action-follow-up" className="form-check-label">Follow-Up Required?</label></div>{draft.followUpRequired && <div className="mb-3"><label htmlFor="action-follow-up-note" className="form-label small fw-semibold">Follow-up Note</label><textarea id="action-follow-up-note" className="form-control" rows={2} value={draft.followUpNote ?? ""} onChange={(event) => onChange({ ...draft, followUpNote: event.target.value })} disabled={saving} /></div>}<div className="mb-3"><label htmlFor="action-attachment-notes" className="form-label small fw-semibold">Attachment Notes</label><input id="action-attachment-notes" className="form-control" value={draft.attachmentNotes ?? ""} onChange={(event) => onChange({ ...draft, attachmentNotes: event.target.value })} disabled={saving} /></div><button type="submit" className="btn btn-sm text-white me-2" style={{ backgroundColor: "#006B3C" }} disabled={saving}>{saving ? "Saving..." : "Save Action Taken"}</button><button type="button" className="btn btn-sm btn-light border" onClick={onCancel} disabled={saving}>Cancel</button></form>;
+  return <div><div className="d-flex justify-content-between align-items-center mb-3"><h2 className="h6 fw-bold mb-0">Actions Taken</h2><button type="button" className="btn btn-sm text-white" style={{ backgroundColor: "#006B3C" }} onClick={() => onOpen()}>+ Add Action Taken</button></div>{actions.length === 0 ? <div className="text-center py-3 text-muted">No Actions Taken yet.</div> : actions.map((action) => <div key={action.id} className="border rounded-3 p-3 mb-3"><div className="d-flex justify-content-between align-items-start gap-2"><div className="small fw-semibold">{action.performedBy.name} {roleBadge(action.performedBy.role)} <span className="text-muted fw-normal">· {formatDate(action.actionDateTime)}</span></div><button type="button" className="btn btn-sm btn-light border" onClick={() => onOpen(action)}>Edit</button></div><div className="small mt-2"><strong>Description:</strong> {action.description}</div><div className="small mt-1"><strong>Result:</strong> {action.result}</div><div className="small mt-1"><strong>Follow-Up Required?</strong> {action.followUpRequired ? "Yes" : "No"}</div>{action.followUpRequired && action.followUpNote && <div className="small mt-1"><strong>Follow-up Note:</strong> {action.followUpNote}</div>}{action.attachmentNotes && <div className="small mt-1"><strong>Attachment Notes:</strong> {action.attachmentNotes}</div>}</div>)}</div>;
+}
 
 export const StaffTicketDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -53,6 +73,11 @@ export const StaffTicketDetailPage: React.FC = () => {
   const [noteError, setNoteError] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+  const [actionDraft, setActionDraft] = useState<ActionTakenInput>(emptyAction());
+  const [editingActionId, setEditingActionId] = useState<number | null>(null);
+  const [actionFormOpen, setActionFormOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSaving, setActionSaving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -93,6 +118,40 @@ export const StaffTicketDetailPage: React.FC = () => {
     finally { setPosting(false); }
   };
 
+  const openActionForm = (action?: ActionTaken) => {
+    setEditingActionId(action?.id ?? null);
+    setActionDraft(action ? { description: action.description, result: action.result, followUpRequired: action.followUpRequired, followUpNote: action.followUpNote ?? "", attachmentNotes: action.attachmentNotes ?? "" } : emptyAction());
+    setActionError(null);
+    setActionFormOpen(true);
+    setActiveTab("actions");
+  };
+
+  const cancelActionForm = () => { setActionFormOpen(false); setEditingActionId(null); setActionDraft(emptyAction()); setActionError(null); };
+
+  const handleActionSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!ticket) return;
+    const description = actionDraft.description.trim();
+    const result = actionDraft.result.trim();
+    const followUpNote = (actionDraft.followUpNote ?? "").trim();
+    const attachmentNotes = (actionDraft.attachmentNotes ?? "").trim();
+    if (!description) { setActionError("Action Description is required."); return; }
+    if (description.length > 2000) { setActionError("Action Description must be 2000 characters or fewer."); return; }
+    if (!result) { setActionError("Result is required."); return; }
+    if (result.length > 2000) { setActionError("Result must be 2000 characters or fewer."); return; }
+    if (actionDraft.followUpRequired && !followUpNote) { setActionError("Follow-up Note is required when follow-up is needed."); return; }
+    if (followUpNote.length > 2000 || attachmentNotes.length > 2000) { setActionError("Action notes must be 2000 characters or fewer."); return; }
+    const input: ActionTakenInput = { description, result, followUpRequired: actionDraft.followUpRequired, followUpNote: actionDraft.followUpRequired ? followUpNote : null, attachmentNotes: attachmentNotes || null };
+    setActionSaving(true); setActionError(null);
+    try {
+      const saved = editingActionId === null ? await createActionTaken(ticket.id, input) : await updateActionTaken(ticket.id, editingActionId, input);
+      setTicket((current) => current ? { ...current, actionsTaken: editingActionId === null ? [...(current.actionsTaken ?? []), saved] : (current.actionsTaken ?? []).map((action) => action.id === saved.id ? saved : action) } : current);
+      setSuccess(editingActionId === null ? "Action Taken saved." : "Action Taken updated.");
+      cancelActionForm();
+    } catch (err) { setActionError(err instanceof Error ? err.message : "Unable to save Action Taken."); }
+    finally { setActionSaving(false); }
+  };
+
   if (loading) return <div className="container py-4" style={{ maxWidth: 1100 }} role="status" aria-label="Loading ticket detail"><div className="card border-0 shadow-sm rounded-3 p-4 bg-white mb-4"><div className="placeholder-glow"><span className="placeholder col-4 mb-3" /><span className="placeholder col-8 d-block mb-2" /><span className="placeholder col-6 d-block" /></div><div className="row g-3 mt-2">{Array.from({ length: 6 }, (_, index) => <div className="col-md-4" key={index}><span className="placeholder col-5 d-block mb-2" /><span className="placeholder col-9 d-block" /></div>)}</div></div><div className="card border-0 shadow-sm rounded-3 p-4 bg-white"><div className="placeholder-glow"><span className="placeholder col-3 d-block mb-3" /><span className="placeholder col-12 d-block mb-2" /><span className="placeholder col-10 d-block" /></div></div></div>;
   if (error || !ticket) return <div><div className="alert alert-danger" role="alert">{error ?? "Ticket not found."}</div><Link to="/queue" className="btn btn-light border">Back to Queue</Link></div>;
 
@@ -110,11 +169,11 @@ export const StaffTicketDetailPage: React.FC = () => {
       <div className="col-md-4"><label htmlFor="it-priority" className="form-label small fw-semibold">IT Priority</label><select id="it-priority" className="form-select form-select-sm" value={ticket.itPriority ?? ticket.requestedPriority} disabled={saving === "priority"} onChange={(event) => void save("priority", "IT Priority", () => updateStaffTicketPriority(ticket.id, event.target.value))}>{["LOW", "MEDIUM", "HIGH"].map((value) => <option key={value}>{value}</option>)}</select>{fieldSuccess === "priority" && <div className="small text-success mt-1" role="status">IT Priority saved.</div>}</div>
       <div className="col-md-4"><label htmlFor="current-status" className="form-label small fw-semibold">Current Status</label><select id="current-status" className="form-select form-select-sm" value="" disabled={saving === "status" || nextStatuses.length === 0} onChange={(event) => void save("status", "Status", () => updateStaffTicketStatus(ticket.id, event.target.value))}><option value="">Choose next status</option>{nextStatuses.map((value) => <option key={value} value={value}>{formatStatus(value)}</option>)}</select><div className="small text-muted mt-1">Allowed next values only</div>{fieldSuccess === "status" && <div className="small text-success mt-1" role="status">Status saved.</div>}</div>
     </div></div>
-    <div className="card border-0 shadow-sm rounded-3 bg-white mb-4"><div className="p-3 border-bottom"><div className="nav nav-tabs" role="tablist">{[["comments", "Public Comments"], ["notes", "🔒 Internal Notes"], ["attachments", `Attachments (${(ticket.attachments ?? []).filter((attachment) => !attachment.isRemoved).length})`], ["actions", "Service Actions"]].map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={activeTab === key} className={`nav-link ${activeTab === key ? "active" : ""}`} onClick={() => setActiveTab(key)}>{label}</button>)}</div></div><div className="p-4">
+    <div className="card border-0 shadow-sm rounded-3 bg-white mb-4"><div className="p-3 border-bottom"><div className="nav nav-tabs" role="tablist">{[["comments", "Public Comments"], ["notes", "🔒 Internal Notes"], ["attachments", `Attachments (${(ticket.attachments ?? []).filter((attachment) => !attachment.isRemoved).length})`], ["actions", `Actions Taken (${(ticket.actionsTaken ?? []).length})`]].map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={activeTab === key} className={`nav-link ${activeTab === key ? "active" : ""}`} onClick={() => setActiveTab(key)}>{label}</button>)}</div></div><div className="p-4">
       {activeTab === "comments" && <><h2 className="visually-hidden">Public Comments</h2>{comments.length ? comments.map((comment) => <div key={comment.id} className="border-bottom py-2"><div className="small fw-semibold d-flex align-items-center gap-2 flex-wrap">{comment.author.name} {roleBadge(comment.author.role)} <span className="text-muted fw-normal">· {formatDate(comment.createdAt)}</span></div><div className="small text-break">{comment.content}</div></div>) : <div className="text-center py-3 text-muted">No comments yet.</div>}<form className="mt-3" onSubmit={handleComment}><label htmlFor="public-comment" className="form-label small fw-semibold">Add Public Comment</label><textarea id="public-comment" className="form-control form-control-sm" rows={3} value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} disabled={posting} />{commentError && <div className="text-danger small mt-1">{commentError}</div>}<button type="submit" className="btn btn-sm text-white mt-2" style={{ backgroundColor: "#006B3C" }} disabled={posting}>{posting ? "Posting..." : "Post Comment"}</button></form></>}
       {activeTab === "notes" && <div style={{ backgroundColor: "#FEFBEA", borderTop: "1px solid #FDE68A", margin: "-1rem", padding: "1rem" }}><h2 className="h6 fw-bold">🔒 Internal Notes</h2>{notes.length ? notes.map((note) => <div key={note.id} className="border-bottom py-2"><div className="small fw-semibold">{note.author.name} <span className="text-muted fw-normal">· {formatDate(note.createdAt)}</span></div><div className="small text-break">{note.content}</div></div>) : <div className="text-center py-3 text-muted">No internal notes yet.</div>}<form className="mt-3" onSubmit={handleNote}><label htmlFor="internal-note" className="form-label small fw-semibold">Add Internal Note</label><textarea id="internal-note" className="form-control form-control-sm" rows={3} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} disabled={posting} />{noteError && <div className="text-danger small mt-1">{noteError}</div>}<button type="submit" className="btn btn-sm text-white mt-2" style={{ backgroundColor: "#006B3C" }} disabled={posting}>{posting ? "Saving..." : "Add Note"}</button></form></div>}
       {activeTab === "attachments" && <><h2 className="h6 fw-bold">Attachments</h2>{(ticket.attachments ?? []).length ? <div className="list-group list-group-flush">{(ticket.attachments ?? []).map((attachment) => <div key={attachment.id} className={`list-group-item px-0 d-flex justify-content-between align-items-center gap-3 ${attachment.isRemoved ? "text-muted" : ""}`}><div><div className={attachment.isRemoved ? "text-decoration-line-through" : ""}>{attachment.originalFileName || attachment.fileName}</div><div className="small">{Math.ceil(attachment.fileSize / 1024)} KB{attachment.isRemoved ? ` · Removal reason: ${attachment.removalReason || "Removed by requester"}` : ""}</div></div>{attachment.isRemoved ? <span className="badge" style={{ backgroundColor: "#6B7280", color: "#FFFFFF" }}>Removed</span> : attachment.isUnavailable ? <span className="badge" style={{ backgroundColor: "#FEF3C7", color: "#D97706" }}>Unavailable</span> : <a className="small fw-semibold" href={`/api/attachments/${attachment.id}/download`} download style={{ color: "#006B3C" }}>Download</a>}</div>)}</div> : <div className="text-center py-3 text-muted">No attachments uploaded for this ticket.</div>}</>}
-      {activeTab === "actions" && <div className="text-center py-5 text-muted"><h2 className="h6">Service Actions</h2><p className="mb-0">Coming in Lab 4.</p></div>}
+      {activeTab === "actions" && <ActionTakenPanel ticket={ticket} open={actionFormOpen} draft={actionDraft} editingActionId={editingActionId} error={actionError} saving={actionSaving} onOpen={openActionForm} onCancel={cancelActionForm} onSubmit={handleActionSubmit} onChange={setActionDraft} />}
     </div></div>
   </div></div>;
 };
