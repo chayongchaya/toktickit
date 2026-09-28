@@ -42,7 +42,7 @@ export const Navbar: React.FC = () => {
 
           <div className="d-flex align-items-center gap-2">
             <Link to="/dashboard" aria-current={isDashboard ? "page" : undefined} className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${isDashboard ? "bg-black bg-opacity-25" : "opacity-75"}`} style={{ textDecoration: "none" }}>
-              <span>▦</span> <span className="d-none d-sm-inline">Dashboard</span>
+              <span>📊</span> <span className="d-none d-sm-inline">Dashboard</span>
             </Link>
             {canUseQueue && (
               <Link to="/queue" className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${isQueue ? "bg-black bg-opacity-25" : "opacity-75"}`} style={{ textDecoration: "none" }}>

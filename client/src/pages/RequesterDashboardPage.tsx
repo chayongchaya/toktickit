@@ -15,11 +15,23 @@ const cards = [
   ["closed", "Closed", "CLOSED", "#F3F4F6"],
 ] as const;
 
+const STATUS_BADGES: Record<string, { backgroundColor: string; color: string; border: string }> = {
+  NEW: { backgroundColor: "#F3F4F6", color: "#374151", border: "#E5E7EB" },
+  OPEN: { backgroundColor: "#EBF5FF", color: "#1E429F", border: "#C3DDFD" },
+  IN_PROGRESS: { backgroundColor: "#FEF3C7", color: "#92400E", border: "#FDE68A" },
+  WAITING_FOR_REQUESTER: { backgroundColor: "#F3E8FF", color: "#6B21A8", border: "#E9D5FF" },
+  RESOLVED: { backgroundColor: "#DEF7EC", color: "#03543F", border: "#BCF0DA" },
+  CLOSED: { backgroundColor: "#E5E7EB", color: "#1F2937", border: "#D1D5DB" },
+  REOPENED: { backgroundColor: "#FFEDD5", color: "#9A3412", border: "#FED7AA" },
+  CANCELLED: { backgroundColor: "#FDE8E8", color: "#9B1C1C", border: "#F8B4B4" },
+};
+
 function RecentTicket({ ticket }: { ticket: DashboardTicket }) {
   const status = ticket.currentStatus.replaceAll("_", " ");
+  const token = STATUS_BADGES[ticket.currentStatus] ?? STATUS_BADGES.NEW;
   return <Link to={`/tickets/${ticket.id}`} className="list-group-item list-group-item-action d-flex justify-content-between gap-3">
     <span><strong>{ticket.ticketNumber}</strong><br /><span className="text-muted">{ticket.summary}</span></span>
-    <span className="d-flex flex-column align-items-end gap-1"><span className="badge rounded-pill px-2 py-1 fw-normal bg-light text-dark border">{status}</span>
+    <span className="d-flex flex-column align-items-end gap-1"><span className="badge rounded-pill px-2 py-1 fw-normal" style={{ ...token, border: `1px solid ${token.border}` }}>{status}</span>
     <span className="text-muted small text-nowrap">{new Date(ticket.updatedAt).toLocaleDateString()}</span>
     </span>
   </Link>;
@@ -44,7 +56,7 @@ export function RequesterDashboardPage() {
     <div className="container py-4" style={{ maxWidth: 1200 }}>
       <div className="mb-4"><h1 className="h4 fw-bold mb-1">Welcome, {user?.name}!</h1><p className="text-muted small mb-0">A quick view of your service requests.</p></div>
       <div className="row g-3 mb-4">
-        {cards.map(([key, label, status, background]) => <div className="col-12 col-sm-6 col-lg-3" key={key}>
+        {cards.map(([key, label, status, background]) => <div className="col-6 col-lg-3" key={key}>
           <Link to={`/tickets?currentStatus=${status}`} className="card h-100 border-0 shadow-sm text-decoration-none" style={{ backgroundColor: background }}>
             <div className="card-body"><div className="text-muted small fw-semibold">{label}</div><div className="display-6 fw-bold text-dark">{data.cards[key]}</div><span className="small text-success">View tickets →</span></div>
           </Link>
