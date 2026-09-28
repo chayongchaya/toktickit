@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { getCategories, getStaffOwners, getStaffTickets, Category, Ticket, Pagination, ApiError, RequesterUser } from "../../api.js";
 
 const statuses = ["NEW", "OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER", "RESOLVED", "CLOSED", "REOPENED", "CANCELLED"];
@@ -19,10 +19,11 @@ type SortField = "createdAt" | "updatedAt" | "itPriority";
 type TicketWithOwner = Ticket & { ownerName?: string | null };
 
 export function StaffTicketQueuePage() {
+  const [searchParams] = useSearchParams();
   const [tickets, setTickets] = useState<Ticket[]>([]); const [categories, setCategories] = useState<Category[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, pageSize: 10, totalPages: 1 });
-  const [search, setSearch] = useState(""); const [status, setStatus] = useState(""); const [category, setCategory] = useState("");
-  const [requestedPriority, setRequestedPriority] = useState(""); const [itPriority, setItPriority] = useState(""); const [owner, setOwner] = useState("");
+  const [search, setSearch] = useState(""); const [status, setStatus] = useState(searchParams.get("status") || ""); const [category, setCategory] = useState("");
+  const [requestedPriority, setRequestedPriority] = useState(""); const [itPriority, setItPriority] = useState(""); const [owner, setOwner] = useState(searchParams.get("owner") || "");
   const [sort, setSort] = useState<SortField>("createdAt"); const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [owners, setOwners] = useState<RequesterUser[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
 

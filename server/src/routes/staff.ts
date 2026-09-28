@@ -69,6 +69,33 @@ const ticketDetailInclude = {
   actionsTaken: { orderBy: { actionDateTime: "asc" as const }, select: actionTakenSelect },
 };
 
+staffRouter.get("/dashboard", async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  try {
+    const [newTickets, open, inProgress, waitingForRequester, myAssigned, unassigned, recentTickets] = await Promise.all([
+      prisma.ticket.count({ where: { currentStatus: "NEW" } }),
+      prisma.ticket.count({ where: { currentStatus: "OPEN" } }),
+      prisma.ticket.count({ where: { currentStatus: "IN_PROGRESS" } }),
+      prisma.ticket.count({ where: { currentStatus: "WAITING_FOR_REQUESTER" } }),
+      prisma.ticket.count({ where: { ownerId: userId, currentStatus: { notIn: ["CLOSED", "CANCELLED"] } } }),
+      prisma.ticket.count({ where: { ownerId: null, currentStatus: { notIn: ["CLOSED", "CANCELLED", "RESOLVED"] } } }),
+      prisma.ticket.findMany({
+        where: { ownerId: userId },
+        select: { id: true, ticketNumber: true, summary: true, currentStatus: true, updatedAt: true },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: 5,
+      }),
+    ]);
+
+    return res.json({
+      cards: { new: newTickets, open, inProgress, waitingForRequester, myAssigned, unassigned },
+      recentTickets,
+    });
+  } catch {
+    return res.status(500).json({ error: "Failed to retrieve staff dashboard" });
+  }
+});
+
 function withAttachmentAvailability<T extends { attachments: Array<{ storagePath: string; isRemoved: boolean }> }>(ticket: T) {
   return {
     ...ticket,

@@ -47,6 +47,9 @@ describe("Lab 3 administrator user management", () => {
     const me = await request(app).get("/api/auth/me").set("Cookie", await loginAs(app, user.email));
     expect(me.status).toBe(200);
     expect(me.body).toEqual(expect.objectContaining({ id: user.id, role: "IT_STAFF", name: "Edited User" }));
+    await prisma.internalNote.deleteMany({ where: { authorId: user.id } });
+    await prisma.publicComment.deleteMany({ where: { authorId: user.id } });
+    await prisma.actionTaken.deleteMany({ where: { performedById: user.id } });
     await prisma.user.delete({ where: { id: user.id } });
   });
 

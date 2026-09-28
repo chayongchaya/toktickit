@@ -156,6 +156,46 @@ export interface TicketsResponse {
   pagination: Pagination;
 }
 
+export interface DashboardTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: string;
+  updatedAt: string;
+}
+
+export interface RequesterDashboard {
+  cards: {
+    myOpenTickets: number;
+    waitingForRequester: number;
+    resolved: number;
+    closed: number;
+  };
+  recentTickets: DashboardTicket[];
+}
+
+export interface StaffDashboard {
+  cards: {
+    new: number;
+    open: number;
+    inProgress: number;
+    waitingForRequester: number;
+    myAssigned: number;
+    unassigned: number;
+  };
+  recentTickets: DashboardTicket[];
+}
+
+export async function getRequesterDashboard(): Promise<RequesterDashboard> {
+  const res = await fetch(`${API_URL}/api/tickets/dashboard`, { credentials: CREDENTIALS });
+  return handleResponse<RequesterDashboard>(res, "Failed to load requester dashboard.");
+}
+
+export async function getStaffDashboard(): Promise<StaffDashboard> {
+  const res = await fetch(`${API_URL}/api/staff/dashboard`, { credentials: CREDENTIALS });
+  return handleResponse<StaffDashboard>(res, "Failed to load staff dashboard.");
+}
+
 export interface StaffTicketListParams {
   search?: string;
   status?: string;

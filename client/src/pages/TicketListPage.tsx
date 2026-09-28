@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.js";
 import { getCategories, type Category } from "../api.js";
 
@@ -30,6 +30,7 @@ const SEARCH_DEBOUNCE_MS = 350;
 
 export const TicketListPage: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [pageSize, setPageSize] = useState<number>(8);
@@ -49,7 +50,7 @@ export const TicketListPage: React.FC = () => {
   const [search, setSearch] = useState(""); // ค่าหลัง debounce ที่จะยิงจริง
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("currentStatus") || "ALL");
 
   // Pagination / sort state
   const [currentPage, setCurrentPage] = useState(1);
