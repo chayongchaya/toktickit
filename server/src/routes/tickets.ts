@@ -383,6 +383,21 @@ ticketsRouter.get("/:id", async (req: Request, res: Response) => {
             author: { select: { id: true, name: true, role: true } },
           },
         },
+        actionsTaken: {
+          orderBy: { actionDateTime: "asc" },
+          select: {
+            id: true,
+            actionDateTime: true,
+            description: true,
+            result: true,
+            followUpRequired: true,
+            followUpNote: true,
+            attachmentNotes: true,
+            createdAt: true,
+            updatedAt: true,
+            performedBy: { select: { id: true, name: true, role: true } },
+          },
+        },
         // internalNotes deliberately NOT included here (BR-04/BR-22) — this
         // route is reachable by a Requester, who must never receive note
         // content or even learn how many notes exist.

@@ -9,9 +9,27 @@ const prisma = getPrisma();
 async function fixtures() {
   const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true } });
   const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false } });
-  const requesterTicket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id, actionsTaken: { none: {} } } });
+  const requesterTicket = await prisma.ticket.findFirstOrThrow({ where: { requesterId: requester.id } });
   const otherTicket = await prisma.ticket.findFirstOrThrow({ where: { id: { not: requesterTicket.id } } });
   return { staff, requester, requesterTicket, otherTicket };
+}
+
+async function createEmptyRequesterTicket(requesterId: number) {
+  const category = await prisma.category.findFirstOrThrow({ where: { isActive: true } });
+  const relatedSystem = await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } });
+  return prisma.ticket.create({
+    data: {
+      ticketNumber: `TKT-API-ACTIONS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      requesterId,
+      categoryId: category.id,
+      relatedSystemId: relatedSystem.id,
+      summary: "Actions Taken API test ticket",
+      description: "Temporary ticket used to verify an empty Actions Taken list.",
+      requestedPriority: "MEDIUM",
+      itPriority: "MEDIUM",
+      currentStatus: "NEW",
+    },
+  });
 }
 
 async function createAction(ticketId: number, staffEmail: string, overrides: Record<string, unknown> = {}) {
@@ -21,6 +39,7 @@ async function createAction(ticketId: number, staffEmail: string, overrides: Rec
     .send({
       description: `API test action ${Date.now()}-${Math.random()}`,
       result: "The test action completed successfully.",
+      followUpRequired: false,
       ...overrides,
     });
 }
@@ -36,11 +55,10 @@ describe("Actions Taken API", () => {
 
     expect(response.status).toBe(201);
     expect(response.body).toEqual(expect.objectContaining({
-      ticketId: requesterTicket.id,
-      performedById: staff.id,
       followUpRequired: false,
       followUpNote: null,
     }));
+    expect(response.body.performedBy).toEqual(expect.objectContaining({ id: staff.id }));
     expect(new Date(response.body.actionDateTime).getTime()).toBeGreaterThanOrEqual(before.getTime());
     await prisma.actionTaken.delete({ where: { id: response.body.id } });
   });
@@ -94,7 +112,8 @@ describe("Actions Taken API", () => {
       .send({ description: "Updated description", result: "Updated result", followUpRequired: false, followUpNote: "must clear", performedById: 999999 });
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual(expect.objectContaining({ description: "Updated description", result: "Updated result", followUpRequired: false, followUpNote: null, performedById: original.performedById, actionDateTime: original.actionDateTime.toISOString() }));
+    expect(response.body).toEqual(expect.objectContaining({ description: "Updated description", result: "Updated result", followUpRequired: false, followUpNote: null, actionDateTime: original.actionDateTime.toISOString() }));
+    expect(response.body.performedBy.id).toBe(original.performedById);
     await prisma.actionTaken.delete({ where: { id: created.body.id } });
   });
 
@@ -105,13 +124,14 @@ describe("Actions Taken API", () => {
     const response = await request(app)
       .patch(`/api/staff/tickets/${otherTicket.id}/actions/${created.body.id}`)
       .set("Cookie", await loginAs(app, staff.email))
-      .send({ description: "Should not move", result: "Should not move" });
+      .send({ description: "Should not move", result: "Should not move", followUpRequired: false });
     expect(response.status).toBe(404);
     await prisma.actionTaken.delete({ where: { id: created.body.id } });
   });
 
   it("API-08: includes actions in requester ticket detail and returns an empty array for none", async () => {
-    const { staff, requester, requesterTicket } = await fixtures();
+    const { staff, requester } = await fixtures();
+    const requesterTicket = await createEmptyRequesterTicket(requester.id);
     const response = await request(app).get(`/api/tickets/${requesterTicket.id}`).set("Cookie", await loginAs(app, requester.email));
     expect(response.status).toBe(200);
     expect(response.body.actionsTaken).toEqual(expect.any(Array));
@@ -120,7 +140,7 @@ describe("Actions Taken API", () => {
     expect(created.status).toBe(201);
     const withAction = await request(app).get(`/api/tickets/${requesterTicket.id}`).set("Cookie", await loginAs(app, requester.email));
     expect(withAction.body.actionsTaken.some((action: { id: number }) => action.id === created.body.id)).toBe(true);
-    await prisma.actionTaken.delete({ where: { id: created.body.id } });
+    await prisma.ticket.delete({ where: { id: requesterTicket.id } });
   });
 
   it("API-09: exposes actions to staff detail but has no requester write route", async () => {

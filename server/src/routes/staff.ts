@@ -6,6 +6,57 @@ import { TICKET_STATUSES, TICKET_TRANSITIONS } from "../lib/ticketTransitions.js
 export const staffRouter = Router();
 const prisma = getPrisma();
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const;
+const MAX_ACTION_TEXT_LENGTH = 2000;
+
+const actionTakenSelect = {
+  id: true,
+  actionDateTime: true,
+  description: true,
+  result: true,
+  followUpRequired: true,
+  followUpNote: true,
+  attachmentNotes: true,
+  createdAt: true,
+  updatedAt: true,
+  performedBy: { select: { id: true, name: true, role: true } },
+} as const;
+
+function validateActionInput(body: any) {
+  const description = body?.description;
+  const result = body?.result;
+  const followUpRequired = body?.followUpRequired;
+  const followUpNote = body?.followUpNote;
+  const attachmentNotes = body?.attachmentNotes;
+
+  if (typeof description !== "string" || description.trim().length === 0) {
+    return { error: "Description is required", field: "description" };
+  }
+  if (description.trim().length > MAX_ACTION_TEXT_LENGTH) {
+    return { error: "Description must be 2000 characters or fewer", field: "description" };
+  }
+  if (typeof result !== "string" || result.trim().length === 0) {
+    return { error: "Result is required", field: "result" };
+  }
+  if (result.trim().length > MAX_ACTION_TEXT_LENGTH) {
+    return { error: "Result must be 2000 characters or fewer", field: "result" };
+  }
+  if (typeof followUpRequired !== "boolean") {
+    return { error: "followUpRequired must be a boolean", field: "followUpRequired" };
+  }
+  if (followUpRequired && (typeof followUpNote !== "string" || followUpNote.trim().length === 0)) {
+    return { error: "Follow-up Note is required when follow-up is needed", field: "followUpNote" };
+  }
+  if (typeof followUpNote === "string" && followUpNote.trim().length > MAX_ACTION_TEXT_LENGTH) {
+    return { error: "Follow-up Note must be 2000 characters or fewer", field: "followUpNote" };
+  }
+  if (attachmentNotes !== undefined && attachmentNotes !== null && typeof attachmentNotes !== "string") {
+    return { error: "Attachment Notes must be text", field: "attachmentNotes" };
+  }
+  if (typeof attachmentNotes === "string" && attachmentNotes.trim().length > MAX_ACTION_TEXT_LENGTH) {
+    return { error: "Attachment Notes must be 2000 characters or fewer", field: "attachmentNotes" };
+  }
+  return null;
+}
 
 const ticketDetailInclude = {
   requester: { select: { id: true, name: true, email: true } },
@@ -15,6 +66,7 @@ const ticketDetailInclude = {
   attachments: { select: { id: true, fileName: true, originalFileName: true, fileSize: true, mimeType: true, isRemoved: true, removalReason: true, createdAt: true, storagePath: true } },
   publicComments: { orderBy: { createdAt: "asc" as const }, select: { id: true, content: true, createdAt: true, author: { select: { id: true, name: true, role: true } } } },
   internalNotes: { orderBy: { createdAt: "asc" as const }, select: { id: true, content: true, createdAt: true, author: { select: { id: true, name: true, role: true } } } },
+  actionsTaken: { orderBy: { actionDateTime: "asc" as const }, select: actionTakenSelect },
 };
 
 function withAttachmentAvailability<T extends { attachments: Array<{ storagePath: string; isRemoved: boolean }> }>(ticket: T) {
@@ -52,6 +104,68 @@ staffRouter.get("/tickets/:id", async (req: Request, res: Response) => {
     return res.json({ ...responseTicket, ownerId: ticket.ownerId, ownerName: ticket.owner?.name ?? null });
   } catch {
     return res.status(500).json({ error: "Failed to retrieve staff ticket details" });
+  }
+});
+
+staffRouter.post("/tickets/:id/actions", async (req: Request, res: Response) => {
+  const ticketId = Number(req.params.id);
+  if (!Number.isInteger(ticketId)) return res.status(400).json({ error: "Invalid ticket ID" });
+
+  const validationError = validateActionInput(req.body);
+  if (validationError) return res.status(400).json(validationError);
+
+  try {
+    const ticket = await prisma.ticket.findUnique({ where: { id: ticketId }, select: { id: true } });
+    if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+
+    const action = await prisma.actionTaken.create({
+      data: {
+        ticketId,
+        description: req.body.description.trim(),
+        result: req.body.result.trim(),
+        performedById: req.user!.id,
+        followUpRequired: req.body.followUpRequired,
+        followUpNote: req.body.followUpRequired ? req.body.followUpNote.trim() : null,
+        attachmentNotes: typeof req.body.attachmentNotes === "string" && req.body.attachmentNotes.trim().length > 0
+          ? req.body.attachmentNotes.trim()
+          : null,
+      },
+      select: actionTakenSelect,
+    });
+    return res.status(201).json(action);
+  } catch {
+    return res.status(500).json({ error: "Failed to create action taken" });
+  }
+});
+
+staffRouter.patch("/tickets/:id/actions/:actionId", async (req: Request, res: Response) => {
+  const ticketId = Number(req.params.id);
+  const actionId = Number(req.params.actionId);
+  if (!Number.isInteger(ticketId) || !Number.isInteger(actionId)) return res.status(400).json({ error: "Invalid ticket or action ID" });
+
+  const validationError = validateActionInput(req.body);
+  if (validationError) return res.status(400).json(validationError);
+
+  try {
+    const existing = await prisma.actionTaken.findFirst({ where: { id: actionId, ticketId }, select: { id: true } });
+    if (!existing) return res.status(404).json({ error: "Action Taken not found" });
+
+    const action = await prisma.actionTaken.update({
+      where: { id: actionId },
+      data: {
+        description: req.body.description.trim(),
+        result: req.body.result.trim(),
+        followUpRequired: req.body.followUpRequired,
+        followUpNote: req.body.followUpRequired ? req.body.followUpNote.trim() : null,
+        attachmentNotes: typeof req.body.attachmentNotes === "string" && req.body.attachmentNotes.trim().length > 0
+          ? req.body.attachmentNotes.trim()
+          : null,
+      },
+      select: actionTakenSelect,
+    });
+    return res.status(200).json(action);
+  } catch {
+    return res.status(500).json({ error: "Failed to update action taken" });
   }
 });
 
