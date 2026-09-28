@@ -16,9 +16,12 @@ const cards = [
 ] as const;
 
 function RecentTicket({ ticket }: { ticket: DashboardTicket }) {
+  const status = ticket.currentStatus.replaceAll("_", " ");
   return <Link to={`/tickets/${ticket.id}`} className="list-group-item list-group-item-action d-flex justify-content-between gap-3">
     <span><strong>{ticket.ticketNumber}</strong><br /><span className="text-muted">{ticket.summary}</span></span>
+    <span className="d-flex flex-column align-items-end gap-1"><span className="badge rounded-pill px-2 py-1 fw-normal bg-light text-dark border">{status}</span>
     <span className="text-muted small text-nowrap">{new Date(ticket.updatedAt).toLocaleDateString()}</span>
+    </span>
   </Link>;
 }
 

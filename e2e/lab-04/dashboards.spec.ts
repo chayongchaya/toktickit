@@ -22,7 +22,12 @@ test.describe("Lab 4 dashboards", () => {
   test("E2E-06: staff lands on the queue dashboard", async ({ page }) => {
     await signIn(page, staff);
     await expect(page.getByRole("heading", { name: "Staff Dashboard" })).toBeVisible();
+    const dashboardLink = page.getByRole("link", { name: "Dashboard" });
+    await expect(dashboardLink).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("link", { name: /My Queue/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /My Assigned/ })).toHaveAttribute("href", /^\/queue\?owner=\d+$/);
+    await page.getByRole("link", { name: /My Queue/ }).click();
+    await expect(page).toHaveURL(/.*\/queue$/);
+    await expect(dashboardLink).not.toHaveAttribute("aria-current", "page");
   });
 });

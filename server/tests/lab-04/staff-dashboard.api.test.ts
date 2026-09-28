@@ -7,7 +7,7 @@ import { loginAs } from "../helpers/auth.js";
 const prisma = getPrisma();
 
 describe("Staff Dashboard API", () => {
-  it("API-13/API-14: returns queue-wide and current-user dashboard cards", async () => {
+  it("API-13: returns queue-wide and current-user dashboard cards", async () => {
     const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true, mustChangePassword: false }, orderBy: { id: "asc" } });
     const response = await request(app).get("/api/staff/dashboard").set("Cookie", await loginAs(app, staff.email));
     expect(response.status).toBe(200);
@@ -15,6 +15,27 @@ describe("Staff Dashboard API", () => {
     expect(response.body.recentTickets.length).toBeLessThanOrEqual(5);
     const expectedAssigned = await prisma.ticket.count({ where: { ownerId: staff.id, currentStatus: { notIn: ["CLOSED", "CANCELLED"] } } });
     expect(response.body.cards.myAssigned).toBe(expectedAssigned);
+  });
+
+  it("API-14: moves an unassigned ticket between dashboard buckets after claim", async () => {
+    const staff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true, mustChangePassword: false }, orderBy: { id: "asc" } });
+    const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
+    const category = await prisma.category.findFirstOrThrow({ where: { isActive: true } });
+    const relatedSystem = await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } });
+    const ticket = await prisma.ticket.create({ data: { ticketNumber: `TKT-DASHBOARD-CLAIM-${Date.now()}`, requesterId: requester.id, categoryId: category.id, relatedSystemId: relatedSystem.id, summary: "Dashboard claim fixture", description: "Temporary dashboard claim fixture.", requestedPriority: "MEDIUM", itPriority: "MEDIUM", currentStatus: "NEW" } });
+    const cookie = await loginAs(app, staff.email);
+    try {
+      const claim = await request(app).patch(`/api/staff/tickets/${ticket.id}/owner`).set("Cookie", cookie).send({ ownerId: staff.id });
+      expect(claim.status).toBe(200);
+      const after = await request(app).get("/api/staff/dashboard").set("Cookie", cookie);
+      expect(after.status).toBe(200);
+      const expectedAssigned = await prisma.ticket.count({ where: { ownerId: staff.id, currentStatus: { notIn: ["CLOSED", "CANCELLED"] } } });
+      const expectedUnassigned = await prisma.ticket.count({ where: { ownerId: null, currentStatus: { notIn: ["CLOSED", "CANCELLED", "RESOLVED"] } } });
+      expect(after.body.cards.myAssigned).toBe(expectedAssigned);
+      expect(after.body.cards.unassigned).toBe(expectedUnassigned);
+    } finally {
+      await prisma.ticket.delete({ where: { id: ticket.id } });
+    }
   });
 
   it("API-15: allows Administrators to use the staff dashboard", async () => {
