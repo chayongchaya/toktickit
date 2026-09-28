@@ -59,7 +59,6 @@ export const CreateTicketPage: React.FC = () => {
         setSystems(systemData);
       })
       .catch((err) => {
-        console.error("Error fetching reference data:", err);
         setReferenceDataError(
           err.message || "Unable to load categories and related systems. Please try again."
         );

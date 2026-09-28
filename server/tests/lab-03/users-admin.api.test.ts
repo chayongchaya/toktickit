@@ -6,7 +6,7 @@ import { hashPassword } from "../../src/lib/password.js";
 import { loginAs } from "../helpers/auth.js";
 
 const prisma = getPrisma();
-const uniqueEmail = (prefix: string) => `${prefix}-${Date.now()}@example.com`;
+const uniqueEmail = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@example.com`;
 
 describe("Lab 3 administrator user management", () => {
   it("searches users by partial name/email and filters by role", async () => {

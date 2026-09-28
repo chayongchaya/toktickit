@@ -67,9 +67,7 @@ export const TicketListPage: React.FC = () => {
 
   // --- โหลด category list จาก DB จริง (แทนการ hardcode) ---
   useEffect(() => {
-    getCategories()
-      .then(setCategories)
-      .catch((err) => console.error("Failed to load categories:", err));
+    getCategories().then(setCategories).catch(() => setCategories([]));
   }, []);
 
   // --- กลับไปหน้า 1 ทุกครั้งที่เงื่อนไข filter/sort เปลี่ยน ---
@@ -125,7 +123,6 @@ export const TicketListPage: React.FC = () => {
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error("Error fetching tickets:", err);
         setFetchError(err.message || "Unable to load your tickets right now.");
         setTickets([]);
       })

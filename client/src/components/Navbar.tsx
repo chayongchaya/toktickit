@@ -31,8 +31,8 @@ export const Navbar: React.FC = () => {
   const roleBadge = user ? ROLE_BADGE[user.role] : undefined;
 
   return (
-    <nav className="navbar navbar-expand px-3 px-md-4 py-2 sticky-top" style={{ backgroundColor: "#006B3C" }}>
-      <div className="container-fluid d-flex justify-content-between align-items-center">
+    <nav className="navbar navbar-expand px-3 px-md-4 py-2 sticky-top" style={{ backgroundColor: "#006B3C", width: "100%", maxWidth: "100vw", boxSizing: "border-box", overflowX: "clip" }}>
+      <div className="container-fluid d-flex justify-content-between align-items-center" style={{ minWidth: 0 }}>
         {/* Brand & Links */}
         <div className="d-flex align-items-center gap-3 gap-md-4">
           <Link to="/tickets" className="navbar-brand text-white fw-bold d-flex align-items-center gap-2 m-0 fs-5">

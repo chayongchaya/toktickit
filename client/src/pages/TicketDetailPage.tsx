@@ -208,7 +208,6 @@ export const TicketDetailPage: React.FC = () => {
 
       e.target.value = "";
     } catch (err) {
-      console.error(err);
 
       setAttachmentError(
         err instanceof Error
@@ -256,7 +255,6 @@ export const TicketDetailPage: React.FC = () => {
 
       await fetchTicketDetails();
     } catch (err) {
-      console.error(err);
 
       setAttachmentError(
         "Failed to remove attachment. Please try again."

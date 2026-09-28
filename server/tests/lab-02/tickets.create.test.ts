@@ -68,7 +68,7 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
     const created = await prisma.ticket.create({
       data: {
-        ticketNumber: `TKT-${Date.now()}-DTL`,
+        ticketNumber: `TKT-${Date.now()}-${Math.random().toString(36).slice(2, 10)}-DTL`,
         requesterId: requester.id,
         categoryId: category!.id,
         relatedSystemId: system!.id,
@@ -112,7 +112,7 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
     const ticket = await prisma.ticket.create({
       data: {
-        ticketNumber: `TKT-${Date.now()}-OWN`,
+        ticketNumber: `TKT-${Date.now()}-${Math.random().toString(36).slice(2, 10)}-OWN`,
         requesterId: owner.id,
         categoryId: category!.id,
         relatedSystemId: system!.id,
@@ -264,7 +264,7 @@ describe("POST /api/tickets & GET /api/systems", () => {
 
     await prisma.ticket.create({
       data: {
-        ticketNumber: `TKT-${Date.now()}-ITP`,
+        ticketNumber: `TKT-${Date.now()}-${Math.random().toString(36).slice(2, 10)}-ITP`,
         requesterId: requester.id,
         categoryId: category!.id,
         relatedSystemId: system!.id,
