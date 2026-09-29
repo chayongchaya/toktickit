@@ -29,7 +29,7 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 
 | Branch | Target | Commits | Remote status |
 |---|---|---|---|
-| `chore/lab4-hardening` | `[create actual GitHub PR]` | `fa64a03`, `61f995c`, `e7e4e3b`, `c70a24e`, `b5686c2`, `3951d53`, `9993058` | Pushed to `origin/chore/lab4-hardening` |
+| `chore/lab4-hardening` | GitHub PR not created yet | `fa64a03`, `61f995c`, `e7e4e3b`, `c70a24e`, `b5686c2`, `3951d53`, `9993058` | Pushed to `origin/chore/lab4-hardening` |
 
 ## 3. Comments Received and Responses
 
@@ -68,18 +68,19 @@ The following preserves the review comments and author responses from GitHub in 
 
 ### Remaining GitHub review evidence
 
-The following release-level items still need to be copied from the actual GitHub pages before PDF submission:
+The feature-branch review evidence is complete. The following release-level items are not yet available
+in this repository because the hardening branch has not been opened as a GitHub PR or merged to `main`:
 
-- Hardening PR: `[fill actual GitHub PR URL]`
-- Hardening approval/comment evidence: `[attach GitHub screenshot or link]`
-- Merge evidence into `main`: `[fill actual GitHub PR URL and merge timestamp]`
+- Hardening PR: Not created yet.
+- Hardening approval/comment evidence: Not available until the hardening PR is reviewed.
+- Merge evidence into `main`: Not available until the release PR is merged.
 
 ## 5. Summary
 
 Lab 4 feature branches were merged into `lab4-staging`, and the hardening branch contains the
 regression fixes, responsive evidence, documentation updates, and 12 responsive screenshots. The
 Feature-PR reviewer identity, comments, approvals, and responses are recorded above from GitHub.
-The hardening PR and release merge into `main` must still be added before the final PDF is submitted.
+The hardening PR and release merge into `main` must be completed before the final PDF is submitted.
 
 ## Review focus
 

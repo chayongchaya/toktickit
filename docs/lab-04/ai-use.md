@@ -46,7 +46,7 @@ following prompts represent the main requests used during this hardening pass:
 
 AI output was treated as a draft. The repository code, test results, database-copy results, and final scope decisions were reviewed by the team before commit.
 
-## Reflection and Critical Review
+## My Reflection
 
 The specification-oriented prompts were useful for tracing the handout requirements to concrete
 files, test IDs, and evidence gaps before changing code. The coding-oriented prompts were most useful

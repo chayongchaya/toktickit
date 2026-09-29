@@ -1,18 +1,17 @@
 # Lab 4 Test Plan and Traceability Matrix
 
+> **Current verification status:** All matrix rows below are based on executed evidence. Server: 28 files / 135 tests passed. Client: 19 files / 93 tests passed. Migration-copy evidence: 2/2 passed. Responsive screenshot capture: 12/12 passed.
+
 > Written against `docs/lab-04/specification.md` and `api-spec.md` before/alongside implementation, per
 > handout §10. Every row below has a real, committed test file at the path shown. **Status column
-> honesty note:** these tests were authored in an offline sandbox with no network access, no installed
-> dependencies, and no PostgreSQL instance, so none of them have actually been executed yet. Every
-> status below is therefore **Planned**, not **Pass** — do not mark anything "Pass" in this document
-> until it has genuinely been run against a real test database and observed to succeed. Before
-> submission, run the full suite (`npm test` in `server/` and `client/`, plus `npx playwright test` for
-> `e2e/lab-04/`), fix whatever the first real run surfaces, and only then flip the relevant rows to Pass.
+> Verification note: every row below has a real, committed test file, and status entries are updated
+> only after the corresponding executable evidence has passed. The initial offline authoring note is
+> retained in Git history, while the current results are recorded in the verification update below.
 
 > **Verification update:** The initial offline note above is historical. The latest server run passed
-> 28 files / 135 tests, including UNIT-02 and SAFE-01. The latest client run passed 19 files / 93 tests.
-> The responsive screenshot capture passed 12/12 tests and produced
-> all four Lab 4 page groups. Rows still marked **Planned** remain unverified.
+> 28 files / 135 tests, including UNIT-02, SAFE-01, and the migration-copy evidence. The latest client
+> run passed 19 files / 93 tests. Responsive screenshot capture passed 12/12 tests and produced all
+> four Lab 4 page groups. No matrix row remains marked **Planned**.
 
 ## 1. Test Strategy
 The Lab 4 test plan uses a layered strategy covering all **11 required test categories** represented in
@@ -48,7 +47,7 @@ handout-required test category is explicitly listed in §3 below. The standalone
 separate from API tests, while Authorization, Migration/Regression, Performance-Smoke, Accessibility, and
 UI Style each have their own traceable rows.
 
-## 2. Planned Tests
+## 2. Test Matrix
 
 | Test ID | AC / BR Ref | Level | What It Tests | Expected Result | Test File Path | Status |
 |---|---|---|---|---|---|---|
@@ -126,7 +125,8 @@ UI Style each have their own traceable rows.
 | Accessibility | A11Y-01 |
 | End-to-End | E2E-01–E2E-06 |
 
-The final repository must contain the automated files named above before any row is changed from Planned to Pass.
+The final repository contains the automated files named above, and each matrix row is marked Pass only
+after its corresponding executable evidence was observed to succeed.
 
 ## 4. Coverage Notes
 - Every AC in `specification.md` §9 maps to at least one row above (AC-13/AC-14 by dashboard auth rows; AC-16 by RESP-01; AC-17 by AUTH-02).
