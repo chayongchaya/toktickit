@@ -22,6 +22,8 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 | [#94](https://github.com/chayongchaya/toktickit/pull/94) | `fix/lab4-test-isolation` → `lab4-staging` | `6f42094` | 2026-09-28 | ✅ Approved & Merged |
 | [#96](https://github.com/chayongchaya/toktickit/pull/96) | `feature/lab4-dashboards` → `lab4-staging` | `08b9388` | 2026-09-28 | ✅ Approved & Merged |
 | [#97](https://github.com/chayongchaya/toktickit/pull/97) | `test/lab4-coverage` → `lab4-staging` | `b032c84` | 2026-09-28 | ✅ Approved & Merged |
+| [#101](https://github.com/chayongchaya/toktickit/pull/101) | `chore/lab4-hardening` → `lab4-staging` | `1c61f51` | 2026-09-30 | ✅ Merged |
+| [#102](https://github.com/chayongchaya/toktickit/pull/102) | `lab4-staging` → `main` | `08c6ee5` | 2026-09-30 | ✅ Merged |
 
 ### Hardening branch
 
@@ -29,7 +31,7 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 
 | Branch | Target | Commits | Remote status |
 |---|---|---|---|
-| `chore/lab4-hardening` | GitHub PR not created yet | `fa64a03`, `61f995c`, `e7e4e3b`, `c70a24e`, `b5686c2`, `3951d53`, `9993058` | Pushed to `origin/chore/lab4-hardening` |
+| `chore/lab4-hardening` | [#101](https://github.com/chayongchaya/toktickit/pull/101) → `lab4-staging` | `fa64a03` … `af5638b`, merge `1c61f51` | ✅ Merged |
 
 ## 3. Comments Received and Responses
 
@@ -66,21 +68,19 @@ The following preserves the review comments and author responses from GitHub in 
   - `actions-taken-requester/{desktop,tablet,mobile}.png`
 - The full Lab 4 Playwright rerun is environment-sensitive: seeded accounts must be reset with `npm --prefix server run prisma:seed` after earlier E2E password-changing tests.
 
-### Remaining GitHub review evidence
+### Release merge evidence
 
-The feature-branch review evidence is complete. The following release-level items are not yet available
-in this repository because the hardening branch has not been opened as a GitHub PR or merged to `main`:
-
-- Hardening PR: Not created yet.
-- Hardening approval/comment evidence: Not available until the hardening PR is reviewed.
-- Merge evidence into `main`: Not available until the release PR is merged.
+The hardening branch was merged into `lab4-staging` through PR #101, and the staging branch was
+then merged into `main` through PR #102. The merge commits above are also present in the fetched
+remote history. Any approval or review-comment evidence for these release PRs should be captured
+from the GitHub PR pages for the final PDF.
 
 ## 5. Summary
 
-Lab 4 feature branches were merged into `lab4-staging`, and the hardening branch contains the
-regression fixes, responsive evidence, documentation updates, and 12 responsive screenshots. The
-Feature-PR reviewer identity, comments, approvals, and responses are recorded above from GitHub.
-The hardening PR and release merge into `main` must be completed before the final PDF is submitted.
+Lab 4 feature branches were merged into `lab4-staging`, the hardening branch was merged through
+PR #101, and the release was merged into `main` through PR #102. The hardening branch contains the
+regression fixes, responsive evidence, documentation updates, and 12 responsive screenshots.
+The feature-PR reviewer identity, comments, approvals, and responses are recorded above from GitHub.
 
 ## Review focus
 
