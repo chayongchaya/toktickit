@@ -6,7 +6,7 @@ import { hashPassword } from "../../src/lib/password.js";
 import { loginAs } from "../helpers/auth.js";
 
 const prisma = getPrisma();
-const uniqueEmail = (prefix: string) => `${prefix}-${Date.now()}@example.com`;
+const uniqueEmail = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@example.com`;
 
 describe("Lab 3 administrator user management", () => {
   it("searches users by partial name/email and filters by role", async () => {
@@ -47,6 +47,9 @@ describe("Lab 3 administrator user management", () => {
     const me = await request(app).get("/api/auth/me").set("Cookie", await loginAs(app, user.email));
     expect(me.status).toBe(200);
     expect(me.body).toEqual(expect.objectContaining({ id: user.id, role: "IT_STAFF", name: "Edited User" }));
+    await prisma.internalNote.deleteMany({ where: { authorId: user.id } });
+    await prisma.publicComment.deleteMany({ where: { authorId: user.id } });
+    await prisma.actionTaken.deleteMany({ where: { performedById: user.id } });
     await prisma.user.delete({ where: { id: user.id } });
   });
 

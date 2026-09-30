@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { Prisma } from "@prisma/client";
+import { Prisma, TicketStatus } from "@prisma/client";
 import { getPrisma } from "../prisma.js";
 import { randomInt } from "crypto";
 
@@ -153,6 +153,40 @@ const isDuplicateSubmission = (key: string): boolean => {
 // ==========================================
 // TICKETS ROUTER (/api/tickets)
 // ==========================================
+
+// Keep this literal route before /:id so "dashboard" is not parsed as a
+// ticket id. Counts are authoritative database aggregates, not reductions of
+// the requester's paginated ticket list.
+ticketsRouter.get("/dashboard", async (req: Request, res: Response) => {
+  if (req.user!.role !== "REQUESTER") {
+    return res.status(403).json({ error: "Requester dashboard is restricted to Requesters" });
+  }
+
+  const requesterId = req.user!.id;
+  const openStatuses: TicketStatus[] = [TicketStatus.NEW, TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.REOPENED];
+
+  try {
+    const [myOpenTickets, waitingForRequester, resolved, closed, recentTickets] = await Promise.all([
+      prisma.ticket.count({ where: { requesterId, currentStatus: { in: openStatuses } } }),
+      prisma.ticket.count({ where: { requesterId, currentStatus: "WAITING_FOR_REQUESTER" } }),
+      prisma.ticket.count({ where: { requesterId, currentStatus: "RESOLVED" } }),
+      prisma.ticket.count({ where: { requesterId, currentStatus: "CLOSED" } }),
+      prisma.ticket.findMany({
+        where: { requesterId },
+        select: { id: true, ticketNumber: true, summary: true, currentStatus: true, updatedAt: true },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: 5,
+      }),
+    ]);
+
+    return res.json({
+      cards: { myOpenTickets, waitingForRequester, resolved, closed },
+      recentTickets,
+    });
+  } catch {
+    return res.status(500).json({ error: "Failed to retrieve requester dashboard" });
+  }
+});
 
 // 1. GET /api/tickets (Paginated & Filtered)
 ticketsRouter.get("/", async (req: Request, res: Response) => {
@@ -337,9 +371,7 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
     });
 
     return res.status(201).json(ticket);
-  } catch (error) {
-    console.error("POST /api/tickets error:", error);
-
+  } catch {
     return res.status(500).json({
       error: "Failed to create ticket",
     });
@@ -381,6 +413,21 @@ ticketsRouter.get("/:id", async (req: Request, res: Response) => {
             content: true,
             createdAt: true,
             author: { select: { id: true, name: true, role: true } },
+          },
+        },
+        actionsTaken: {
+          orderBy: { actionDateTime: "asc" },
+          select: {
+            id: true,
+            actionDateTime: true,
+            description: true,
+            result: true,
+            followUpRequired: true,
+            followUpNote: true,
+            attachmentNotes: true,
+            createdAt: true,
+            updatedAt: true,
+            performedBy: { select: { id: true, name: true, role: true } },
           },
         },
         // internalNotes deliberately NOT included here (BR-04/BR-22) — this

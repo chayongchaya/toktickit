@@ -33,7 +33,7 @@ test.describe("Lab 3 authentication flows", () => {
       await page.getByRole("textbox", { name: "New password", exact: true }).fill("NewValid1!");
       await page.getByLabel("Confirm new password").fill("NewValid1!");
       await page.getByRole("button", { name: "Continue" }).click();
-      await expect(page).toHaveURL(/.*\/tickets/);
+      await expect(page).toHaveURL(/.*\/dashboard/);
       await expect(page.getByRole("link", { name: /My Tickets/ })).toBeVisible();
     } finally {
       await api.patch(`/api/admin/users/${(await api.get(`/api/admin/users?search=${encodeURIComponent(email)}`)).json().then((users: Array<{ id: number }>) => users[0]?.id ?? 0)}`, { data: { isActive: false } });
@@ -46,7 +46,7 @@ test.describe("Lab 3 authentication flows", () => {
     await page.getByLabel("Email address").fill(requester.email);
     await page.locator("#login-password").fill(requester.password);
     await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page).toHaveURL(/.*\/tickets/);
+    await expect(page).toHaveURL(/.*\/dashboard/);
     await page.getByRole("button", { name: /Jennifer Anderson/ }).click();
     await page.getByRole("button", { name: /Logout/ }).click();
     await expect(page).toHaveURL(/.*\/login/);

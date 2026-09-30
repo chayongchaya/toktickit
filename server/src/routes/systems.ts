@@ -11,8 +11,7 @@ const getSystemsHandler = async (_req: Request, res: Response) => {
       orderBy: { name: "asc" },
     });
     return res.status(200).json(systems);
-  } catch (error) {
-    console.error("GET systems error:", error);
+  } catch {
     return res.status(500).json({ error: "Failed to fetch systems" });
   }
 };
