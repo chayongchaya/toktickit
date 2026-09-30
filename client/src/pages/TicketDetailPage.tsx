@@ -849,14 +849,48 @@ export const TicketDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="card border-0 shadow-sm rounded-3 bg-white mt-4">
-        <div className="card-header bg-white border-bottom px-4 py-3">
-          <h6 className="fw-bold mb-0 text-dark">Actions Taken <span className="text-muted fw-normal">({(ticket.actionsTaken ?? []).length})</span></h6>
+      <section className="card border-0 shadow-sm rounded-4 bg-white mt-4 overflow-hidden" aria-labelledby="actions-taken-heading">
+        <div className="px-4 py-3 border-bottom" style={{ backgroundColor: "#F0F8F3" }}>
+          <div className="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <h2 id="actions-taken-heading" className="h6 fw-bold mb-1 text-dark">Actions Taken <span className="text-success fw-semibold">({(ticket.actionsTaken ?? []).length})</span></h2>
+              <p className="small text-muted mb-0">Service activity recorded by the IT team</p>
+            </div>
+            <span className="badge rounded-pill bg-white text-success border border-success-subtle px-3 py-2">Read-only</span>
+          </div>
         </div>
-        <div className="card-body p-4">
-          {(ticket.actionsTaken ?? []).length === 0 ? <p className="text-muted small fst-italic mb-0">No Actions Taken yet.</p> : <div className="d-flex flex-column gap-3">{(ticket.actionsTaken ?? []).map((action: ActionTaken) => <div key={action.id} className="border rounded-3 p-3"><div className="small fw-semibold">{action.performedBy.name} <span className="badge rounded-pill bg-light text-muted border ms-1">{action.performedBy.role === "IT_STAFF" ? "IT Staff" : action.performedBy.role === "ADMINISTRATOR" ? "Administrator" : "Requester"}</span><span className="text-muted fw-normal ms-2">· {new Date(action.actionDateTime).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</span></div><div className="small mt-2"><strong>Description:</strong> {action.description}</div><div className="small mt-1"><strong>Result:</strong> {action.result}</div><div className="small mt-1"><strong>Follow-Up Required?</strong> {action.followUpRequired ? "Yes" : "No"}</div>{action.followUpRequired && action.followUpNote && <div className="small mt-1"><strong>Follow-up Note:</strong> {action.followUpNote}</div>}{action.attachmentNotes && <div className="small mt-1"><strong>Attachment Notes:</strong> {action.attachmentNotes}</div>}</div>)}</div>}
+        <div className="card-body p-3 p-md-4" style={{ backgroundColor: "#FAFCFB" }}>
+          {(ticket.actionsTaken ?? []).length === 0 ? (
+            <div className="text-center rounded-3 border border-dashed p-4 bg-white">
+              <div className="fs-4 mb-2" aria-hidden="true">🛠️</div>
+              <p className="text-muted small mb-0">No Actions Taken yet.</p>
+            </div>
+          ) : (
+            <div className="d-flex flex-column gap-3">
+              {(ticket.actionsTaken ?? []).map((action: ActionTaken) => (
+                <article key={action.id} className="rounded-4 bg-white p-3 p-md-4 shadow-sm" style={{ border: "1px solid #DDE9E1", borderLeft: "4px solid #006B3C" }}>
+                  <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <div className="d-flex flex-wrap align-items-center gap-2">
+                      <span className="fw-semibold text-dark">{action.performedBy.name}</span>
+                      <span className="badge rounded-pill px-2 py-1" style={{ backgroundColor: "#EAF6EF", color: "#006B3C" }}>{action.performedBy.role === "IT_STAFF" ? "IT Staff" : action.performedBy.role === "ADMINISTRATOR" ? "Administrator" : "Requester"}</span>
+                    </div>
+                    <time className="small text-muted" dateTime={new Date(action.actionDateTime).toISOString()}>{new Date(action.actionDateTime).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</time>
+                  </div>
+                  <div className="row g-3">
+                    <div className="col-12 col-lg-6"><div className="small text-uppercase fw-semibold text-muted mb-1">Description</div><p className="small text-dark mb-0 text-break">{action.description}</p></div>
+                    <div className="col-12 col-lg-6"><div className="small text-uppercase fw-semibold text-muted mb-1">Result</div><p className="small text-dark mb-0 text-break">{action.result}</p></div>
+                  </div>
+                  <div className="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+                    <span className={`badge rounded-pill ${action.followUpRequired ? "text-success bg-success-subtle" : "text-secondary bg-light"}`}>Follow-Up: {action.followUpRequired ? "Required" : "Not required"}</span>
+                    {action.followUpRequired && action.followUpNote && <span className="small text-muted">{action.followUpNote}</span>}
+                    {action.attachmentNotes && <span className="small text-muted">Attachment: {action.attachmentNotes}</span>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      </section>
 
       {removeTarget && (
         <div
