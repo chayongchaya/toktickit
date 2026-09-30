@@ -849,8 +849,9 @@ export const TicketDetailPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="container px-0" style={{ maxWidth: 1100 }}>
       <section className="card border-0 shadow-sm rounded-4 bg-white mt-4 overflow-hidden" aria-labelledby="actions-taken-heading">
-        <div className="px-4 py-3 border-bottom" style={{ backgroundColor: "#F0F8F3" }}>
+        <div className="px-3 px-md-4 py-3 border-bottom" style={{ backgroundColor: "#F0F8F3" }}>
           <div className="d-flex align-items-center justify-content-between gap-3">
             <div>
               <h2 id="actions-taken-heading" className="h6 fw-bold mb-1 text-dark">Actions Taken <span className="text-success fw-semibold">({(ticket.actionsTaken ?? []).length})</span></h2>
@@ -873,7 +874,7 @@ export const TicketDetailPage: React.FC = () => {
                     <span className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold" style={{ width: 30, height: 30, backgroundColor: "#006B3C", fontSize: "0.72rem" }}>{String(index + 1).padStart(2, "0")}</span>
                     {index < (ticket.actionsTaken ?? []).length - 1 && <span className="flex-grow-1 mt-2" style={{ width: 2, backgroundColor: "#B8DCC6" }} />}
                   </div>
-                  <article className="flex-grow-1 rounded-4 bg-white p-3 p-md-4 shadow-sm" style={{ border: "1px solid #DDE9E1" }}>
+                  <article className="flex-grow-1 rounded-4 bg-white p-3 p-md-4 shadow-sm" style={{ minWidth: 0, border: "1px solid #DDE9E1", overflowWrap: "anywhere" }}>
                     <div className="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
                       <div><div className="fw-semibold text-dark">{action.performedBy.name}</div><span className="badge rounded-pill mt-1 px-2 py-1" style={{ backgroundColor: "#EAF6EF", color: "#006B3C" }}>{action.performedBy.role === "IT_STAFF" ? "IT Staff" : action.performedBy.role === "ADMINISTRATOR" ? "Administrator" : "Requester"}</span></div>
                       <time className="small text-muted text-end" dateTime={new Date(action.actionDateTime).toISOString()}>{new Date(action.actionDateTime).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</time>
@@ -894,6 +895,7 @@ export const TicketDetailPage: React.FC = () => {
           )}
         </div>
       </section>
+      </div>
 
       {removeTarget && (
         <div
