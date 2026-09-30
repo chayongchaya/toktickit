@@ -22,6 +22,8 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 | [#94](https://github.com/chayongchaya/toktickit/pull/94) | `fix/lab4-test-isolation` → `lab4-staging` | `6f42094` | 2026-09-28 | ✅ Approved & Merged |
 | [#96](https://github.com/chayongchaya/toktickit/pull/96) | `feature/lab4-dashboards` → `lab4-staging` | `08b9388` | 2026-09-28 | ✅ Approved & Merged |
 | [#97](https://github.com/chayongchaya/toktickit/pull/97) | `test/lab4-coverage` → `lab4-staging` | `b032c84` | 2026-09-28 | ✅ Approved & Merged |
+| [#101](https://github.com/chayongchaya/toktickit/pull/101) | `chore/lab4-hardening` → `lab4-staging` | `1c61f51` | 2026-09-30 | ✅ Approved & Merged |
+| [#102](https://github.com/chayongchaya/toktickit/pull/102) | `lab4-staging` → `main` | `08c6ee5` | 2026-09-30 | ✅ Approved & Merged |
 
 ### Hardening branch
 
@@ -29,7 +31,7 @@ approvals, and merge details must be copied from the actual GitHub pages before 
 
 | Branch | Target | Commits | Remote status |
 |---|---|---|---|
-| `chore/lab4-hardening` | GitHub PR not created yet | `fa64a03`, `61f995c`, `e7e4e3b`, `c70a24e`, `b5686c2`, `3951d53`, `9993058` | Pushed to `origin/chore/lab4-hardening` |
+| `chore/lab4-hardening` | [#101](https://github.com/chayongchaya/toktickit/pull/101) → `lab4-staging` | `fa64a03` … `af5638b`, merge `1c61f51` | ✅ Merged |
 
 ## 3. Comments Received and Responses
 
@@ -44,6 +46,8 @@ The following preserves the review comments and author responses from GitHub in 
 | [#94](https://github.com/chayongchaya/toktickit/pull/94) | @chayanitkunt | Essential and well-architected test-hardening fix. Replacing shared seeded records with dedicated, ephemeral fixtures and explicit afterEach teardown cleanly eliminates parallel database mutation collisions. Decoupling requester fixtures from the concurrent authentication suites guarantees deterministic execution and wipes out the intermittent race conditions. With 20/20 test files and 107/107 tests passing consistently, this is solid. | Thank you so much for the thorough review and sign-off on the test-hardening fix. |
 | [#96](https://github.com/chayongchaya/toktickit/pull/96) | @chayanitkunt | Approved!<br><br>- **Visual Alignment Polish:** Great addition with commit `62af114` to fine-tune the dashboard visuals against the Sprint 4 UI specification.<br>- **Full-Stack Execution:** Post-login `/dashboard` landing, URL search param drill-downs (`?status=`, `?owner=`, `?currentStatus=`), and role boundaries are rock solid.<br>- **Test Integrity:** All API (10–17), UI (09–12), and E2E (05–06) test suites passing cleanly. | Thank you so much for the comprehensive review and approval. The dashboard visuals, drill-down parameters, and role guards are officially locked in. |
 | [#97](https://github.com/chayongchaya/toktickit/pull/97) | @chayanitkunt | Outstanding test stabilization and coverage expansion!<br><br>- **Workflow & Concurrency Coverage:** `ticket-workflow.api.test.ts` thoroughly verifies WORKFLOW-01..06 and CONC-01 stale transition rules with isolated fixtures.<br>- **DB Race Condition Fix:** Adding `--no-file-parallelism` to the server test script cleanly prevents shared PostgreSQL state pollution during integration runs.<br>- **E2E & Spec Alignment:** Responsive locator fixes for mobile navbars and E2E specs for Actions Taken/Resolution keep testing aligned with `docs/lab-04/tests.md`. | Thank you so much for the thorough review and sign-off on the test stabilization and coverage expansion! Passing --no-file-parallelism and refining the mobile navbar locators completely removes the remaining flakiness. |
+| [#101](https://github.com/chayongchaya/toktickit/pull/101) | @chayanitkunt | Outstanding work on the final Lab 4 hardening. The review highlighted test isolation and migration safety, responsive UI polish including the Requester Actions Taken timeline, status dropdown fixes, sticky-navbar clipping resolution, and all 12 cross-viewport screenshots. | Thank you so much for the comprehensive review and sign-off on the final hardening! The test-suite stability, responsive layouts, and verified migration safety make this release ready. |
+| [#102](https://github.com/chayongchaya/toktickit/pull/102) | @chayanitkunt | LGTM! The release review highlighted additive-only migration and idempotent seed data, API authorization and server-owned fields, the Actions Taken UI, dashboard query-parameter drill-downs, and the server/client/E2E test and visual evidence package. | Thank you so much for the thorough review and detailed sign-off. The Lab 4 release is now merged into `main` and the submission package is complete. |
 
 ## 4. Verification Evidence
 
@@ -66,21 +70,19 @@ The following preserves the review comments and author responses from GitHub in 
   - `actions-taken-requester/{desktop,tablet,mobile}.png`
 - The full Lab 4 Playwright rerun is environment-sensitive: seeded accounts must be reset with `npm --prefix server run prisma:seed` after earlier E2E password-changing tests.
 
-### Remaining GitHub review evidence
+### Release merge evidence
 
-The feature-branch review evidence is complete. The following release-level items are not yet available
-in this repository because the hardening branch has not been opened as a GitHub PR or merged to `main`:
-
-- Hardening PR: Not created yet.
-- Hardening approval/comment evidence: Not available until the hardening PR is reviewed.
-- Merge evidence into `main`: Not available until the release PR is merged.
+The hardening branch was merged into `lab4-staging` through PR #101, and the staging branch was
+then merged into `main` through PR #102. The merge commits above are also present in the fetched
+remote history. Any approval or review-comment evidence for these release PRs should be captured
+from the GitHub PR pages for the final PDF.
 
 ## 5. Summary
 
-Lab 4 feature branches were merged into `lab4-staging`, and the hardening branch contains the
-regression fixes, responsive evidence, documentation updates, and 12 responsive screenshots. The
-Feature-PR reviewer identity, comments, approvals, and responses are recorded above from GitHub.
-The hardening PR and release merge into `main` must be completed before the final PDF is submitted.
+Lab 4 feature branches were merged into `lab4-staging`, the hardening branch was merged through
+PR #101, and the release was merged into `main` through PR #102. The hardening branch contains the
+regression fixes, responsive evidence, documentation updates, and 12 responsive screenshots.
+The feature-PR reviewer identity, comments, approvals, and responses are recorded above from GitHub.
 
 ## Review focus
 
