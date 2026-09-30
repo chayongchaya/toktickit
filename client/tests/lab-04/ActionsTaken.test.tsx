@@ -111,6 +111,22 @@ describe("Actions Taken staff UI", () => {
     await act(async () => { resolve(action); });
   });
 
+  it("DUP-01: ignores repeated Save clicks while create is in flight", async () => {
+    let resolve: (value: typeof action) => void = () => undefined;
+    mocks.createActionTaken.mockReturnValue(new Promise<typeof action>((r) => { resolve = r; }));
+    renderPage();
+    await waitFor(() => screen.getByRole("tab", { name: "Actions Taken (0)" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Actions Taken (0)" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Add Action Taken" }));
+    fireEvent.change(screen.getByLabelText("Action Description"), { target: { value: "One submission" } });
+    fireEvent.change(screen.getByLabelText("Result"), { target: { value: "One result" } });
+    const save = screen.getByRole("button", { name: "Save Action Taken" });
+    fireEvent.click(save);
+    fireEvent.click(save);
+    expect(mocks.createActionTaken).toHaveBeenCalledTimes(1);
+    await act(async () => { resolve(action); });
+  });
+
   it("A11Y-01: form controls have labels and the validation is an alert", async () => {
     renderPage();
     await waitFor(() => screen.getByRole("tab", { name: "Actions Taken (0)" }));

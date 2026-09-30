@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import bcrypt from "bcrypt";
+import type { TicketStatus } from "@prisma/client";
 import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
 import { TICKET_STATUSES, TICKET_TRANSITIONS } from "../../src/lib/ticketTransitions.js";
@@ -10,7 +11,7 @@ const prisma = getPrisma();
 const fixtureTicketIds = new Set<number>();
 const fixtureRequesterIds = new Set<number>();
 
-async function createFixture(status: string) {
+async function createFixture(status: TicketStatus) {
   const requester = await prisma.user.create({
     data: {
       name: `Workflow Requester ${Date.now()}`,

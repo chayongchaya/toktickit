@@ -22,7 +22,7 @@ describe("Staff Dashboard API", () => {
     const requester = await prisma.user.findFirstOrThrow({ where: { role: "REQUESTER", isActive: true, mustChangePassword: false, NOT: { email: { startsWith: "first-login-" } } }, orderBy: { id: "asc" } });
     const category = await prisma.category.findFirstOrThrow({ where: { isActive: true } });
     const relatedSystem = await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } });
-    const ticket = await prisma.ticket.create({ data: { ticketNumber: `TKT-DASHBOARD-CLAIM-${Date.now()}`, requesterId: requester.id, categoryId: category.id, relatedSystemId: relatedSystem.id, summary: "Dashboard claim fixture", description: "Temporary dashboard claim fixture.", requestedPriority: "MEDIUM", itPriority: "MEDIUM", currentStatus: "NEW" } });
+    const ticket = await prisma.ticket.create({ data: { ticketNumber: `TKT-DASHBOARD-CLAIM-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`, requesterId: requester.id, categoryId: category.id, relatedSystemId: relatedSystem.id, summary: "Dashboard claim fixture", description: "Temporary dashboard claim fixture.", requestedPriority: "MEDIUM", itPriority: "MEDIUM", currentStatus: "NEW" } });
     const cookie = await loginAs(app, staff.email);
     try {
       const claim = await request(app).patch(`/api/staff/tickets/${ticket.id}/owner`).set("Cookie", cookie).send({ ownerId: staff.id });

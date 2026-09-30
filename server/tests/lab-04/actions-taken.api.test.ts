@@ -95,6 +95,18 @@ describe("Actions Taken API", () => {
     await prisma.actionTaken.delete({ where: { id: response.body.id } });
   });
 
+  it("API-02: rejects an unauthenticated Actions Taken create", async () => {
+    const { requesterTicket } = await fixtures();
+    const response = await request(app).post(`/api/staff/tickets/${requesterTicket.id}/actions`).send({ description: "Unauthenticated", result: "Denied", followUpRequired: false });
+    expect(response.status).toBe(401);
+  });
+
+  it("API-04: rejects Actions Taken create for a nonexistent ticket", async () => {
+    const { staff } = await fixtures();
+    const response = await createAction(999999999, staff.email);
+    expect(response.status).toBe(404);
+  });
+
   it("API-02: returns validation errors for blank or oversized description/result", async () => {
     const { staff, requesterTicket } = await fixtures();
     const cookie = await loginAs(app, staff.email);
@@ -146,6 +158,21 @@ describe("Actions Taken API", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual(expect.objectContaining({ description: "Updated description", result: "Updated result", followUpRequired: false, followUpNote: null, actionDateTime: original.actionDateTime.toISOString() }));
     expect(response.body.performedBy.id).toBe(original.performedById);
+    await prisma.actionTaken.delete({ where: { id: created.body.id } });
+  });
+
+  it("API-07: allows a different IT Staff member to edit an existing action", async () => {
+    const { staff, requesterTicket } = await fixtures();
+    const otherStaff = await prisma.user.findFirstOrThrow({ where: { role: "IT_STAFF", isActive: true, id: { not: staff.id } } });
+    const created = await createAction(requesterTicket.id, staff.email);
+    expect(created.status).toBe(201);
+    const response = await request(app)
+      .patch(`/api/staff/tickets/${requesterTicket.id}/actions/${created.body.id}`)
+      .set("Cookie", await loginAs(app, otherStaff.email))
+      .send({ description: "Edited by another staff member", result: "Review completed", followUpRequired: false });
+    expect(response.status).toBe(200);
+    expect(response.body.result).toBe("Review completed");
+    expect(response.body.performedBy.id).toBe(staff.id);
     await prisma.actionTaken.delete({ where: { id: created.body.id } });
   });
 

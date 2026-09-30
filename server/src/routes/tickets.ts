@@ -371,9 +371,7 @@ ticketsRouter.post("/", async (req: Request, res: Response) => {
     });
 
     return res.status(201).json(ticket);
-  } catch (error) {
-    console.error("POST /api/tickets error:", error);
-
+  } catch {
     return res.status(500).json({
       error: "Failed to create ticket",
     });

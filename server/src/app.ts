@@ -77,7 +77,7 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
 app.use("/api/auth", authRouter);
 
 // Routes สำหรับ Lab 2
-// GET /api/requesters (the old Development Requester selector's data
+// GET /api/requesters (legacy compatibility data for requester references)
 // source) has been removed entirely, not just left unused — it existed
 // only to populate SelectRequesterPage, which BR-32 retires along with
 // RequesterContext. Keeping the endpoint around would be dead code that
