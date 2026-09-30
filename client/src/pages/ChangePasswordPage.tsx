@@ -51,7 +51,7 @@ export const ChangePasswordPage: React.FC = () => {
     try {
       await changePassword(currentPassword, newPassword);
       markPasswordChanged();
-      navigate("/tickets", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.field === "newPassword") {
         setFieldError(err.message);

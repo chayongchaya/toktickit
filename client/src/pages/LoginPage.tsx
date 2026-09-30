@@ -30,7 +30,7 @@ export const LoginPage: React.FC = () => {
         navigate("/change-password", { replace: true });
       } else {
         // Send each role to its first available workspace after authentication.
-        const roleHome = user.role === "ADMINISTRATOR" ? "/admin/users" : user.role === "IT_STAFF" ? "/queue" : "/tickets";
+        const roleHome = "/dashboard";
         navigate(location.state?.from ?? roleHome, { replace: true });
       }
     } catch (err) {

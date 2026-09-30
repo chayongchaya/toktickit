@@ -19,6 +19,7 @@ export const Navbar: React.FC = () => {
   const isCreateTicket = location.pathname === "/tickets/new";
   const isQueue = location.pathname === "/queue" || location.pathname.startsWith("/queue/");
   const isAdmin = location.pathname === "/admin/users";
+  const isDashboard = location.pathname === "/dashboard";
   const canUseQueue = user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR";
 
   const handleLogout = async () => {
@@ -30,8 +31,8 @@ export const Navbar: React.FC = () => {
   const roleBadge = user ? ROLE_BADGE[user.role] : undefined;
 
   return (
-    <nav className="navbar navbar-expand px-3 px-md-4 py-2 sticky-top" style={{ backgroundColor: "#006B3C" }}>
-      <div className="container-fluid d-flex justify-content-between align-items-center">
+    <nav className="navbar navbar-expand px-3 px-md-4 py-2" style={{ backgroundColor: "#006B3C", width: "100%", maxWidth: "100vw", boxSizing: "border-box", overflowX: "clip" }}>
+      <div className="container-fluid d-flex justify-content-between align-items-center" style={{ minWidth: 0 }}>
         {/* Brand & Links */}
         <div className="d-flex align-items-center gap-3 gap-md-4">
           <Link to="/tickets" className="navbar-brand text-white fw-bold d-flex align-items-center gap-2 m-0 fs-5">
@@ -40,6 +41,9 @@ export const Navbar: React.FC = () => {
           </Link>
 
           <div className="d-flex align-items-center gap-2">
+            <Link to="/dashboard" aria-current={isDashboard ? "page" : undefined} className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${isDashboard ? "bg-black bg-opacity-25" : "opacity-75"}`} style={{ textDecoration: "none" }}>
+              <span>📊</span> <span className="d-none d-sm-inline">Dashboard</span>
+            </Link>
             {canUseQueue && (
               <Link to="/queue" className={`nav-link text-white px-3 py-1 rounded-2 d-flex align-items-center gap-2 small fw-semibold ${isQueue ? "bg-black bg-opacity-25" : "opacity-75"}`} style={{ textDecoration: "none" }}>
                 <span>🎫</span> <span className="d-none d-sm-inline">My Queue</span>

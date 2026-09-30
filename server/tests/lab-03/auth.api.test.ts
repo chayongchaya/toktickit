@@ -134,7 +134,7 @@ describe("POST /api/auth/change-password and the mandatory-change gate", () => {
   // account has (seed.ts seeds already-known local-dev credentials, not
   // admin-issued initial passwords) — so this suite creates one directly.
   const TEMP_PASSWORD = "Temp0rary!";
-  const email = `first-login-${Date.now()}@kmutt.ac.th`;
+  const email = `first-login-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@kmutt.ac.th`;
 
   beforeAll(async () => {
     await prisma.user.create({

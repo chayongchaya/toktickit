@@ -1,0 +1,32 @@
+-- Lab 4 migration: add the Actions Taken child table.
+-- This migration is intentionally additive: it does not alter or drop any
+-- existing Lab 1-3 table, column, enum, index, or constraint.
+
+CREATE TABLE "ActionTaken" (
+    "id" SERIAL NOT NULL,
+    "ticketId" INTEGER NOT NULL,
+    "actionDateTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "description" TEXT NOT NULL,
+    "result" TEXT NOT NULL,
+    "performedById" INTEGER NOT NULL,
+    "followUpRequired" BOOLEAN NOT NULL DEFAULT false,
+    "followUpNote" TEXT,
+    "attachmentNotes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ActionTaken_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX "ActionTaken_ticketId_idx" ON "ActionTaken"("ticketId");
+CREATE INDEX "ActionTaken_performedById_idx" ON "ActionTaken"("performedById");
+
+ALTER TABLE "ActionTaken"
+  ADD CONSTRAINT "ActionTaken_ticketId_fkey"
+  FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id")
+  ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "ActionTaken"
+  ADD CONSTRAINT "ActionTaken_performedById_fkey"
+  FOREIGN KEY ("performedById") REFERENCES "User"("id")
+  ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -98,6 +98,27 @@ export interface InternalNote {
   author: { id: number; name: string; role: string };
 }
 
+export interface ActionTaken {
+  id: number;
+  actionDateTime: string;
+  description: string;
+  result: string;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  performedBy: { id: number; name: string; role: string };
+}
+
+export interface ActionTakenInput {
+  description: string;
+  result: string;
+  followUpRequired: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+}
+
 export interface Ticket {
   id: number;
   ticketNumber: string;
@@ -118,6 +139,7 @@ export interface Ticket {
   attachments?: Attachment[];
   publicComments?: PublicComment[];
   internalNotes?: InternalNote[];
+  actionsTaken?: ActionTaken[];
   ownerId?: number | null;
   ownerName?: string | null;
 }
@@ -132,6 +154,46 @@ export interface Pagination {
 export interface TicketsResponse {
   data: Ticket[];
   pagination: Pagination;
+}
+
+export interface DashboardTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: string;
+  updatedAt: string;
+}
+
+export interface RequesterDashboard {
+  cards: {
+    myOpenTickets: number;
+    waitingForRequester: number;
+    resolved: number;
+    closed: number;
+  };
+  recentTickets: DashboardTicket[];
+}
+
+export interface StaffDashboard {
+  cards: {
+    new: number;
+    open: number;
+    inProgress: number;
+    waitingForRequester: number;
+    myAssigned: number;
+    unassigned: number;
+  };
+  recentTickets: DashboardTicket[];
+}
+
+export async function getRequesterDashboard(): Promise<RequesterDashboard> {
+  const res = await fetch(`${API_URL}/api/tickets/dashboard`, { credentials: CREDENTIALS });
+  return handleResponse<RequesterDashboard>(res, "Failed to load requester dashboard.");
+}
+
+export async function getStaffDashboard(): Promise<StaffDashboard> {
+  const res = await fetch(`${API_URL}/api/staff/dashboard`, { credentials: CREDENTIALS });
+  return handleResponse<StaffDashboard>(res, "Failed to load staff dashboard.");
 }
 
 export interface StaffTicketListParams {
@@ -187,6 +249,20 @@ export async function postInternalNote(ticketId: number | string, content: strin
     method: "POST", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
   });
   return handleResponse<InternalNote>(res, "Failed to post internal note.");
+}
+
+export async function createActionTaken(ticketId: number | string, input: ActionTakenInput): Promise<ActionTaken> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/actions`, {
+    method: "POST", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  });
+  return handleResponse<ActionTaken>(res, "Failed to create action taken.");
+}
+
+export async function updateActionTaken(ticketId: number | string, actionId: number, input: ActionTakenInput): Promise<ActionTaken> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/actions/${actionId}`, {
+    method: "PATCH", credentials: CREDENTIALS, headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  });
+  return handleResponse<ActionTaken>(res, "Failed to update action taken.");
 }
 
 export interface SystemStatus {

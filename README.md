@@ -1,18 +1,18 @@
 # TokTickIT - IT Service Desk Application
 
-## Lab 3 current workflow
+## Current workflow (Lab 4)
 
-Lab 3 uses real session authentication and three roles instead of the retired Development Requester selector:
+The current application uses real session authentication and three roles:
 
-- Requester: `/tickets` and `/tickets/new`
-- IT Staff: `/queue` and `/queue/:id`
-- Administrator: `/queue`, `/queue/:id`, and `/admin/users`
+- Requester: `/dashboard`, `/tickets`, and `/tickets/new`
+- IT Staff: `/dashboard`, `/queue`, and `/queue/:id`
+- Administrator: `/dashboard`, `/queue`, `/queue/:id`, and `/admin/users`
 
 The local/test seed uses `DevPass123!` for seeded active accounts only. Do not use this password in production. Administrator-created accounts start with `mustChangePassword = true` and must change their password at first login.
 
 The complete Lab 3 specification, API contract, UI specification, and test traceability matrix are in `docs/lab-03/`.
 
-TokTickIT is a full-stack IT service desk web application developed as part of **CPE 334**. This increment (Lab 2) delivers the Requester-facing ticketing MVP: a temporary Development Requester selector (test-only, not real authentication), ticket creation with validated fields and attachments, a searchable/filterable/sortable/paginated My Tickets list, a read-only Ticket Detail screen, and attachment upload/download/soft-removal — all built on the Zen Green UI theme.
+TokTickIT is a full-stack IT service desk web application developed as part of **CPE 334**, with authenticated ticketing, dashboards, Actions Taken, and role-specific workflows built on the Zen Green UI theme.
 
 ---
 
@@ -106,7 +106,7 @@ docker compose up -d
 cd server
 npx prisma migrate dev
 
-# Seed reference data (categories, related systems) and Development Requesters
+# Seed reference data, demo users, tickets, and Actions Taken fixtures
 npx prisma db seed
 cd ..
 ```
@@ -141,7 +141,7 @@ npm run dev
 
 ### Backend Test Suite
 
-Executes unit and API/integration tests for Lab 2 (reference data, Development Requester context, ticket creation, ticket listing, ticket detail, and attachment upload/download/soft-removal):
+Executes the full backend unit, API, workflow, dashboard, and Lab 1–3 regression suite:
 
 ```bash
 cd server
@@ -150,7 +150,7 @@ npm test
 
 ### Frontend Test Suite
 
-Executes component tests for Development Requester Selection, Create Ticket, My Tickets, Requester Ticket Detail, the Attachment section, and Zen Green style conformance:
+Executes the full frontend component and Lab 4 UI suite:
 
 ```bash
 cd client
@@ -159,6 +159,21 @@ npm test
 
 ---
 
+## Lab 4 verification and demo
+
+From the repository root:
+
+```bash
+npm test
+npx playwright test e2e/lab-04 --workers=1
+```
+
+The server test command uses `--no-file-parallelism` because the integration tests share the PostgreSQL test database. This prevents cross-file fixture races.
+
+For a browser demo, start PostgreSQL, apply migrations, seed the database, then start the API and client in separate terminals. Sign in with a seeded account, open `/dashboard`, and demonstrate the role-specific dashboard, ticket detail, Actions Taken form, and status workflow.
+
+Key Lab 4 endpoints include `GET /api/tickets/dashboard`, `GET /api/staff/dashboard`, `POST /api/staff/tickets/:id/actions`, and `PATCH /api/staff/tickets/:id/actions/:actionId`. See `docs/lab-04/api-spec.md` for the complete contract.
+
 ## 📡 API Reference (Lab 2)
 
 | Method | Endpoint | Description | Expected Status |
@@ -166,7 +181,7 @@ npm test
 | `GET` | `/api/health` | Health check endpoint returning `{ status: "ok" }` | `200 OK` |
 | `GET` | `/api/categories` | Returns active ticket categories | `200 OK` |
 | `GET` | `/api/related-systems` (alias: `/api/systems`) | Returns active related systems | `200 OK` |
-| `GET` | `/api/requesters` | Returns active Development Requesters (inactive requesters excluded) | `200 OK` |
+| `GET` | `/api/requesters` | Legacy compatibility endpoint for active requester references | `200 OK` |
 | `GET` | `/api/tickets` | Returns the selected Requester's tickets, with search, filter, sort, and pagination | `200 OK` |
 | `POST` | `/api/tickets` | Creates a new ticket for the selected Requester and returns the generated Ticket Number | `201 Created` |
 | `GET` | `/api/tickets/:id` | Returns one owned ticket's details (ownership-checked) | `200 OK` / `403` / `404` |
